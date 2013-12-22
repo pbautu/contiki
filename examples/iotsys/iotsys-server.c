@@ -294,7 +294,8 @@ void temp_value_periodic_handler(resource_t *r) {
 	REST.notify_subscribers(r, obs_counter, notification);
 }
 
-PROCESS(iotsys_server, "IoTSyS example server");
+
+PROCESS(iotsys_server, "IoTSyS");
 AUTOSTART_PROCESSES(&iotsys_server);
 
 PROCESS_THREAD(iotsys_server, ev, data) {
