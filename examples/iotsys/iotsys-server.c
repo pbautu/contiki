@@ -168,19 +168,19 @@ int temp_to_default_buff() {
 
 }
 
-uint8_t create_response(int num, int accept, char *buffer) {
+
+uint8_t create_response_datapoint(int num, int accept, char *buffer) {
 	size_t size_temp;
 	int size_msgp1, size_msgp2;
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
 	if (num && accept == REST.type.APPLICATION_XML) {
-		msgp1 =
-				"<obj href=\"temp\"><real href=\"value\" units=\"obix:units/celsius\" val=\"";
-		msgp2 = "\"/></obj>\0";
-		/* hardcoded length, ugly but faster and necc. for exi-answer */
-		size_msgp1 = 68;
-		size_msgp2 = 10;
+		msgp1 = "<real href=\"value\" units=\"obix:units/celsius\" val=\"";
+		msgp2 = "\"/>\0";
+			/* hardcoded length, ugly but faster and necc. for exi-answer */
+		size_msgp1 = 51;
+		size_msgp2 = 4;
 	} else {
 		PRINTF("Unsupported encoding!\n");
 		return -1;
@@ -191,14 +191,7 @@ uint8_t create_response(int num, int accept, char *buffer) {
 		return -1;
 	}
 
-	/* Some data that has the length up to REST_MAX_CHUNK_SIZE. For more, see the chunk resource. */
-	/* we assume null-appended strings behind msgp2 and tempstring */
 	size_msg = size_msgp1 + size_msgp2 + size_temp + 1;
-
-	if (size_msg > TEMP_MSG_MAX_SIZE) {
-		PRINTF("Message too big!\n");
-		return -1;
-	}
 
 	memcpy(buffer, msgp1, size_msgp1);
 	memcpy(buffer + size_msgp1, tempstring, size_temp);
@@ -206,6 +199,36 @@ uint8_t create_response(int num, int accept, char *buffer) {
 
 	return size_msg;
 }
+
+uint8_t create_response_object(int num, int accept, char *buffer) {
+	size_t size_datapoint;
+	int size_msgp1, size_msgp2;
+	const char *msgp1, *msgp2;
+	uint8_t size_msg;
+
+	if (num && accept == REST.type.APPLICATION_XML) {
+		msgp1 =
+				"<obj href=\"temp\">";
+		msgp2 = "</obj>\0";
+		/* hardcoded length, ugly but faster and necc. for exi-answer */
+		size_msgp1 = 17;
+		size_msgp2 = 7;
+	} else {
+		PRINTF("Unsupported encoding!\n");
+		return -1;
+	}
+
+	memcpy(buffer, msgp1, size_msgp1);
+	// creates real data point and copies content to message buffer
+	size_datapoint = create_response_datapoint(num, accept, buffer + size_msgp1);
+
+	memcpy(buffer + size_msgp1 + size_datapoint, msgp2, size_msgp2 + 1);
+
+	size_msg = size_msgp1 + size_msgp2 + size_datapoint + 1;
+
+	return size_msg;
+}
+
 
 /*
  * Example for an oBIX temperature sensor.
@@ -239,7 +262,7 @@ void temp_handler(void* request, void* response, uint8_t *buffer,
 
 		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response(num, accept[0], message)) <= 0) {
+		if ((size_msg = create_response_object(num, accept[0], message)) <= 0) {
 			PRINTF("ERROR while creating message!\n");
 			REST.set_response_status(response,
 					REST.status.INTERNAL_SERVER_ERROR);
@@ -256,18 +279,49 @@ void temp_handler(void* request, void* response, uint8_t *buffer,
 /*
  * Example for an oBIX temperature sensor.
  */
-PERIODIC_RESOURCE(temp_value, METHOD_GET, "temp/value",
+PERIODIC_RESOURCE(value, METHOD_GET, "temp/value",
 		"title=\"Temperature value", 5*CLOCK_SECOND);
 
-void temp_value_handler(void* request, void* response, uint8_t *buffer,
+void value_handler(void* request, void* response, uint8_t *buffer,
 		uint16_t preferred_size, int32_t *offset) {
 
-	PRINTF("temp value called\n");
-	REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
+	PRINTF("temp_value_handler called - preferred size: %u, offset:%d,\n", preferred_size, *offset);
+	/* we save the message as static variable, so it is retained through multiple calls (chunked resource) */
+	static char message[TEMP_MSG_MAX_SIZE];
+	static uint8_t size_msg;
 
-	/* Usually, a CoAP server would response with the resource representation matching the periodic_handler. */
-	const char *msg = "It's periodic!";
-	REST.set_response_payload(response, msg, strlen(msg));
+	const uint16_t *accept = NULL;
+	int num = 0, length = 0;
+	char *err_msg;
+
+	/* Check the offset for boundaries of t	he resource data. */
+	if (*offset >= CHUNKS_TOTAL) {
+		REST.set_response_status(response, REST.status.BAD_OPTION);
+		/* A block error message should not exceed the minimum block size (16). */
+		err_msg = "BlockOutOfScope";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	/* compute message once */
+	if (*offset <= 0) {
+		/* decide upon content-format */
+		num = REST.get_header_accept(request, &accept);
+
+		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+		if ((size_msg = create_response_datapoint(num, accept[0], message)) <= 0) {
+			PRINTF("ERROR while creating message!\n");
+			REST.set_response_status(response,
+					REST.status.INTERNAL_SERVER_ERROR);
+			err_msg = "ERROR while creating message :\\";
+			REST.set_response_payload(response, err_msg, strlen(err_msg));
+			return;
+		}
+	}
+
+	send_message(message, size_msg, request, response, buffer, preferred_size,
+			offset);
 
 	/* A post_handler that handles subscriptions will be called for periodic resources by the REST framework. */
 }
@@ -276,7 +330,7 @@ void temp_value_handler(void* request, void* response, uint8_t *buffer,
  * Additionally, a handler function named [resource name]_handler must be implemented for each PERIODIC_RESOURCE.
  * It will be called by the REST manager process with the defined period.
  */
-void temp_value_periodic_handler(resource_t *r) {
+void value_periodic_handler(resource_t *r) {
 	static uint16_t obs_counter = 0;
 	static char content[11];
 
@@ -320,7 +374,7 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		/* Activate the application-specific resources. */
 		rest_activate_resource(&resource_temp);
 
-		rest_activate_resource(&resource_temp_value);
+		rest_activate_resource(&resource_value);
 
 		// activate temperature
 		tmp102_init();
