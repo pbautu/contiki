@@ -280,7 +280,7 @@ void temp_handler(void* request, void* response, uint8_t *buffer,
  * Example for an oBIX temperature sensor.
  */
 PERIODIC_RESOURCE(value, METHOD_GET, "temp/value",
-		"title=\"Temperature value", 5*CLOCK_SECOND);
+		"title=\"Temperature Value;obs\"", 5*CLOCK_SECOND);
 
 void value_handler(void* request, void* response, uint8_t *buffer,
 		uint16_t preferred_size, int32_t *offset) {
@@ -331,21 +331,33 @@ void value_handler(void* request, void* response, uint8_t *buffer,
  * It will be called by the REST manager process with the defined period.
  */
 void value_periodic_handler(resource_t *r) {
-	static uint16_t obs_counter = 0;
-	static char content[11];
 
-	++obs_counter;
+	  static char new_value[TEMP_BUFF_MAX];
+	  static char buffer[TEMP_MSG_MAX_SIZE];
+	  static uint8_t obs_counter = 0;
+	  size_t size_msg;
 
-	PRINTF("TICK %u for /%s\n", obs_counter, r->url);
+	  if (temp_to_buff(new_value) <= 0) {
+	    PRINTF("ERROR while creating message!\n");
+	    return;
+	  }
 
-	/* Build notification. */
-	coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
-	coap_init_message(notification, COAP_TYPE_NON, REST.status.OK, 0);
-	coap_set_payload(notification, content,
-			snprintf(content, sizeof(content), "TICK %u", obs_counter));
+	  if (strncmp(new_value, tempstring, TEMP_BUFF_MAX) != 0)
+	  {
+	    if ((size_msg = create_response_datapoint(1, REST.type.APPLICATION_XML, buffer)) <= 0)
+	    {
+	      PRINTF("ERROR while creating message!\n");
+	      return;
+	    }
 
-	/* Notify the registered observers with the given message type, observe option, and payload. */
-	REST.notify_subscribers(r, obs_counter, notification);
+	    /* Build notification. */
+	    coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
+	    coap_init_message(notification, COAP_TYPE_NON, CONTENT_2_05, 0 );
+	    coap_set_payload(notification, buffer, size_msg);
+
+	    /* Notify the registered observers with the given message type, observe option, and payload. */
+	    REST.notify_subscribers(r, obs_counter, notification);
+	  }
 }
 
 
@@ -374,7 +386,7 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		/* Activate the application-specific resources. */
 		rest_activate_resource(&resource_temp);
 
-		rest_activate_resource(&resource_value);
+		rest_activate_periodic_resource(&periodic_resource_value);
 
 		// activate temperature
 		tmp102_init();
