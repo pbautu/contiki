@@ -169,17 +169,23 @@ int temp_to_default_buff() {
 }
 
 
-uint8_t create_response_datapoint(int num, int accept, char *buffer) {
+uint8_t create_response_datapoint(int num, int accept, char *buffer, int asChild) {
 	size_t size_temp;
 	int size_msgp1, size_msgp2;
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
 	if (num && accept == REST.type.APPLICATION_XML) {
-		msgp1 = "<real href=\"value\" units=\"obix:units/celsius\" val=\"";
+		if(asChild){
+			msgp1 = "<real href=\"temp/value\" units=\"obix:units/celsius\" val=\"";
+			size_msgp1 = 56;
+		}
+		else{
+			msgp1 = "<real href=\"value\" units=\"obix:units/celsius\" val=\"";
+			size_msgp1 = 51;
+		}
 		msgp2 = "\"/>\0";
-			/* hardcoded length, ugly but faster and necc. for exi-answer */
-		size_msgp1 = 51;
+
 		size_msgp2 = 4;
 	} else {
 		PRINTF("Unsupported encoding!\n");
@@ -208,10 +214,10 @@ uint8_t create_response_object(int num, int accept, char *buffer) {
 
 	if (num && accept == REST.type.APPLICATION_XML) {
 		msgp1 =
-				"<obj href=\"temp\">";
+				"<obj href=\"temp\" is=\"iot:TemperatureSensor\">";
 		msgp2 = "</obj>\0";
-		/* hardcoded length, ugly but faster and necc. for exi-answer */
-		size_msgp1 = 17;
+
+		size_msgp1 = 44;
 		size_msgp2 = 7;
 	} else {
 		PRINTF("Unsupported encoding!\n");
@@ -220,7 +226,7 @@ uint8_t create_response_object(int num, int accept, char *buffer) {
 
 	memcpy(buffer, msgp1, size_msgp1);
 	// creates real data point and copies content to message buffer
-	size_datapoint = create_response_datapoint(num, accept, buffer + size_msgp1);
+	size_datapoint = create_response_datapoint(num, accept, buffer + size_msgp1, 1);
 
 	memcpy(buffer + size_msgp1 + size_datapoint, msgp2, size_msgp2 + 1);
 
@@ -310,7 +316,7 @@ void value_handler(void* request, void* response, uint8_t *buffer,
 
 		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_datapoint(num, accept[0], message)) <= 0) {
+		if ((size_msg = create_response_datapoint(num, accept[0], message, 0)) <= 0) {
 			PRINTF("ERROR while creating message!\n");
 			REST.set_response_status(response,
 					REST.status.INTERNAL_SERVER_ERROR);
@@ -344,7 +350,7 @@ void value_periodic_handler(resource_t *r) {
 
 	  if (strncmp(new_value, tempstring, TEMP_BUFF_MAX) != 0)
 	  {
-	    if ((size_msg = create_response_datapoint(1, REST.type.APPLICATION_XML, buffer)) <= 0)
+	    if ((size_msg = create_response_datapoint(1, REST.type.APPLICATION_XML, buffer, 0)) <= 0)
 	    {
 	      PRINTF("ERROR while creating message!\n");
 	      return;
