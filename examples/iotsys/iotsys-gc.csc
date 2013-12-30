@@ -7,7 +7,7 @@
   <project EXPORT="discard">[APPS_DIR]/collect-view</project>
   <project EXPORT="discard">[APPS_DIR]/powertracker</project>
   <simulation>
-    <title>IoTSyS group communication</title>
+    <title>IoTSyS Group Communication</title>
     <speedlimit>1.0</speedlimit>
     <randomseed>123456</randomseed>
     <motedelay_us>1000000</motedelay_us>
@@ -24,10 +24,10 @@
     <motetype>
       org.contikios.cooja.mspmote.Z1MoteType
       <identifier>z11</identifier>
-      <description>Z1 Mote Type #z11</description>
-      <source EXPORT="discard">[CONTIKI_DIR]/examples/ipv6/simple-udp-rpl/broadcast-example.c</source>
-      <commands EXPORT="discard">make broadcast-example.z1 TARGET=z1</commands>
-      <firmware EXPORT="copy">[CONTIKI_DIR]/examples/ipv6/simple-udp-rpl/broadcast-example.z1</firmware>
+      <description>IoTSyS GC Sender</description>
+      <source EXPORT="discard">[CONTIKI_DIR]/examples/iotsys/iotsys-gc-sender.c</source>
+      <commands EXPORT="discard">make iotsys-gc-sender.z1 TARGET=z1</commands>
+      <firmware EXPORT="copy">[CONTIKI_DIR]/examples/iotsys/iotsys-gc-sender.z1</firmware>
       <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
       <moteinterface>org.contikios.cooja.interfaces.RimeAddress</moteinterface>
       <moteinterface>org.contikios.cooja.interfaces.IPAddress</moteinterface>
@@ -44,10 +44,10 @@
     <motetype>
       org.contikios.cooja.mspmote.Z1MoteType
       <identifier>z12</identifier>
-      <description>Z1 Mote Type #z12</description>
-      <source EXPORT="discard">[CONTIKI_DIR]/examples/iotsys/iotsys-group-communication.c</source>
-      <commands EXPORT="discard">make iotsys-group-communication.z1 TARGET=z1</commands>
-      <firmware EXPORT="copy">[CONTIKI_DIR]/examples/iotsys/iotsys-group-communication.z1</firmware>
+      <description>IoTSyS GC Receiver</description>
+      <source EXPORT="discard">[CONTIKI_DIR]/examples/iotsys/iotsys-gc-receiver.c</source>
+      <commands EXPORT="discard">make iotsys-gc-receiver.z1 TARGET=z1</commands>
+      <firmware EXPORT="copy">[CONTIKI_DIR]/examples/iotsys/iotsys-gc-receiver.z1</firmware>
       <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
       <moteinterface>org.contikios.cooja.interfaces.RimeAddress</moteinterface>
       <moteinterface>org.contikios.cooja.interfaces.IPAddress</moteinterface>
@@ -65,13 +65,27 @@
       <breakpoints />
       <interface_config>
         org.contikios.cooja.interfaces.Position
-        <x>71.85150821825147</x>
-        <y>65.51369233896729</y>
+        <x>55.04449878996968</x>
+        <y>64.07933960768469</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         org.contikios.cooja.mspmote.interfaces.MspMoteID
         <id>1</id>
+      </interface_config>
+      <motetype_identifier>z11</motetype_identifier>
+    </mote>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        org.contikios.cooja.interfaces.Position
+        <x>73.79466385974014</x>
+        <y>24.32424771018557</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        org.contikios.cooja.mspmote.interfaces.MspMoteID
+        <id>2</id>
       </interface_config>
       <motetype_identifier>z12</motetype_identifier>
     </mote>
@@ -79,13 +93,13 @@
       <breakpoints />
       <interface_config>
         org.contikios.cooja.interfaces.Position
-        <x>72.73391309536433</x>
-        <y>44.15949431283584</y>
+        <x>97.71529121701653</x>
+        <y>-17.323402868527737</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
         org.contikios.cooja.mspmote.interfaces.MspMoteID
-        <id>2</id>
+        <id>3</id>
       </interface_config>
       <motetype_identifier>z12</motetype_identifier>
     </mote>
@@ -103,12 +117,15 @@
     <plugin_config>
       <moterelations>true</moterelations>
       <skin>org.contikios.cooja.plugins.skins.IDVisualizerSkin</skin>
-      <skin>org.contikios.cooja.plugins.skins.GridVisualizerSkin</skin>
+      <skin>org.contikios.cooja.plugins.skins.AddressVisualizerSkin</skin>
       <skin>org.contikios.cooja.plugins.skins.TrafficVisualizerSkin</skin>
-      <viewport>5.66633314217329 0.0 0.0 5.66633314217329 -234.13458233221482 -160.22240616643464</viewport>
+      <skin>org.contikios.cooja.plugins.skins.GridVisualizerSkin</skin>
+      <skin>org.contikios.cooja.plugins.skins.MoteTypeVisualizerSkin</skin>
+      <skin>org.contikios.cooja.plugins.skins.UDGMVisualizerSkin</skin>
+      <viewport>1.5232902016321548 0.0 0.0 1.5232902016321548 79.15125433948619 106.38856984855467</viewport>
     </plugin_config>
     <width>400</width>
-    <z>0</z>
+    <z>2</z>
     <height>400</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
@@ -121,8 +138,8 @@
       <coloring />
     </plugin_config>
     <width>1325</width>
-    <z>2</z>
-    <height>436</height>
+    <z>0</z>
+    <height>434</height>
     <location_x>400</location_x>
     <location_y>160</location_y>
   </plugin>
@@ -131,6 +148,7 @@
     <plugin_config>
       <mote>0</mote>
       <mote>1</mote>
+      <mote>2</mote>
       <showRadioRXTX />
       <showRadioHW />
       <showLEDs />
