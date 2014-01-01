@@ -1332,15 +1332,14 @@ static void
 compress_hdr_bc0(rimeaddr_t *rime_destaddr)
 {
   *rime_ptr = SICSLOWPAN_DISPATCH_BC0;
-  rime_hdr_len += SICSLOWPAN_IPV6_HDR_LEN;
+  *(rime_ptr + 1) = 5; // sequence number
+  rime_hdr_len += SICSLOWPAN_BC0_HDR_LEN;
   memcpy(rime_ptr + rime_hdr_len, UIP_IP_BUF, UIP_IPH_LEN);
   rime_hdr_len += UIP_IPH_LEN;
   uncomp_hdr_len += UIP_IPH_LEN;
   return;
 }
 
-static void
-/** @} */
 
 /*--------------------------------------------------------------------*/
 /** \name Input/output functions common to all compression schemes

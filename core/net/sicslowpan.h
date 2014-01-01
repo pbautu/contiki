@@ -174,7 +174,7 @@
 #define SICSLOWPAN_HC1_HC_UDP_HDR_LEN               7
 #define SICSLOWPAN_FRAG1_HDR_LEN                    4
 #define SICSLOWPAN_FRAGN_HDR_LEN                    5
-#define SICSLOWPAN_BC0_HDR_LEN						1
+#define SICSLOWPAN_BC0_HDR_LEN						2
 /** @} */
 
 /**
