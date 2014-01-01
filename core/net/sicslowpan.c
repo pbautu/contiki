@@ -319,7 +319,7 @@ int isSequenceNewAndStore(uip_ip6addr_t *srcip, uint8_t sequence){
 		PRINTF("  ");
 		if(uip_ip6addr_cmp(srcip,&sequenceBuffer[i].srcip)){
 			// found src ip
-			PRINTF("Found sequence number for src ip %d", sequenceBuffer[i].sequence);
+			PRINTF("Found sequence number for src ip %d\n", sequenceBuffer[i].sequence);
 
 			// in general we want to keep the sequence number increasing but after 256 frames it is reset to 0
 			// therefore the second clause assumes that the current sequence number including the last 10
@@ -1893,17 +1893,21 @@ input(void)
           PRINTFI("sicslowpan input: BC0\n");
           rime_hdr_len += SICSLOWPAN_BC0_HDR_LEN;
 
-
-
-
           /* Put uncompressed IP header in sicslowpan_buf. */
           memcpy(SICSLOWPAN_IP_BUF, rime_ptr + rime_hdr_len, UIP_IPH_LEN);
 
           // re-transmit packet
-          PRINTF("MESH UNDER RE-TRANSMIT!\n");
-          PRINT6ADDR(&SICSLOWPAN_IP_BUF->srcipaddr);
-          debug_ipv6_sequence_buffer();
-          send_packet(&rimeaddr_null);
+          PRINTF("Check sequence number\n");
+
+          if(isSequenceNewAndStore(&SICSLOWPAN_IP_BUF->srcipaddr, (uint8_t) *(rime_ptr +1))){
+        	  printf("Sequence number is new -> retransmit.\n");
+        	  //debug_ipv6_sequence_buffer();
+        	  send_packet(&rimeaddr_null);
+          }
+          else{
+        	  printf("Packet is old.\n");
+        	  return;
+          }
 
           /* Update uncomp_hdr_len and rime_hdr_len. */
           rime_hdr_len += UIP_IPH_LEN;
