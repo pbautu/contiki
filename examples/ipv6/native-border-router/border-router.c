@@ -56,7 +56,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#define DEBUG DEBUG_FULL
+#define DEBUG DEBUG_NONE
 #include "net/uip-debug.h"
 
 #define MAX_SENSORS 4

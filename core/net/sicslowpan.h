@@ -69,6 +69,7 @@
 #define SICSLOWPAN_COMPRESSION_IPV6        0
 #define SICSLOWPAN_COMPRESSION_HC1         1
 #define SICSLOWPAN_COMPRESSION_HC06        2
+#define SICSLOWPAN_COMPRESSION_BC0		   3
 /** @} */
 
 /**
@@ -323,5 +324,15 @@ int sicslowpan_get_last_rssi(void);
 
 extern const struct network_driver sicslowpan_driver;
 
+/*-------------------------------------------------------------------------*/
+/* LOWPAN_BC0 structures                                                   */
+/*-------------------------------------------------------------------------*/
+
+#define LOWPAN_BC0_SEQUENCE_BUF_LEN 20
+
+struct ipv6_sequence{
+	uip_ip6addr_t srcip;
+	uint8_t sequence;
+};
 #endif /* SICSLOWPAN_H_ */
 /** @} */

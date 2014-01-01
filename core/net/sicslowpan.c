@@ -71,7 +71,7 @@
 
 #include <stdio.h>
 
-#define DEBUG DEBUG_FULL
+#define DEBUG DEBUG_FULl
 #include "net/uip-debug.h"
 #if DEBUG
 /* PRINTFI and PRINTFO are defined for input and output to debug one without changing the timing of the other */
@@ -278,6 +278,78 @@ static int last_rssi;
 /*-------------------------------------------------------------------------*/
 static struct rime_sniffer *callback = NULL;
 
+/*-------------------------------------------------------------------------*/
+/* LOWPAN_BC0 structures                                                   */
+/*-------------------------------------------------------------------------*/
+
+
+// buffer of latest sequence nrs using LRU policy for replacement
+static struct ipv6_sequence sequenceBuffer[LOWPAN_BC0_SEQUENCE_BUF_LEN] = {{0}};
+
+// current index
+static int cur_ipv6_sequence = 0;
+
+void debug_ipv6_sequence_buffer(){
+	uip_ip6addr_t unspecified;
+	int i;
+	PRINTF("SEQUENCE BUFFER IS:\n");
+	uip_create_unspecified(&unspecified);
+	for(i = 0; i < LOWPAN_BC0_SEQUENCE_BUF_LEN; i++){
+		PRINTF("  ");
+		if(uip_ip6addr_cmp(&unspecified,&sequenceBuffer[i].srcip)){
+			PRINTF("Unspecified.\n");
+		}
+		else{
+			PRINT6ADDR(&sequenceBuffer[i].srcip);
+			PRINTF(": %d\n", sequenceBuffer[i].sequence);
+		}
+	}
+}
+
+// sequence number of this node
+static uint8_t lowpan_bc0_sequence = 0;
+
+int isSequenceNewAndStore(uip_ip6addr_t *srcip, uint8_t sequence){
+	uip_ip6addr_t unspecified;
+	int i;
+
+	// check if sequence number for source ip has been recorded
+	uip_create_unspecified(&unspecified);
+	for(i = 0; i < LOWPAN_BC0_SEQUENCE_BUF_LEN; i++){
+		PRINTF("  ");
+		if(uip_ip6addr_cmp(srcip,&sequenceBuffer[i].srcip)){
+			// found src ip
+			PRINTF("Found sequence number for src ip %d", sequenceBuffer[i].sequence);
+
+			// in general we want to keep the sequence number increasing but after 256 frames it is reset to 0
+			// therefore the second clause assumes that the current sequence number including the last 10
+			// numbers are old packets. if the sequence number is lower below this treshold it is assumed to
+			// be a new packet.
+			if(sequenceBuffer[i].sequence == sequence && sequenceBuffer[i].sequence - 10 < sequence){
+				// this is an old packet
+				return 0;
+			}
+			else{
+				// this is a new packet
+				sequenceBuffer[i].sequence = sequence;
+				return 1;
+			}
+		}
+	}
+
+	// if there was no sequence number found create new entry
+	if(cur_ipv6_sequence == LOWPAN_BC0_SEQUENCE_BUF_LEN){
+		// end of array reached reset index and overwrite existing entries
+		cur_ipv6_sequence = 0;
+	}
+	uip_ip6addr_copy(&sequenceBuffer[cur_ipv6_sequence].srcip , srcip);
+	sequenceBuffer[cur_ipv6_sequence].sequence = sequence;
+	cur_ipv6_sequence++;
+	// sequence was new
+	return 1;
+}
+
+
 void
 rime_sniffer_add(struct rime_sniffer *s)
 {
@@ -317,9 +389,7 @@ set_packet_attrs()
 /*   if(uip_ds6_is_my_addr(&UIP_IP_BUF->srcipaddr)) { */
 /*     own = 1; */
 /*   } */
-
 }
-
 
 
 #if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06
@@ -1332,7 +1402,9 @@ static void
 compress_hdr_bc0(rimeaddr_t *rime_destaddr)
 {
   *rime_ptr = SICSLOWPAN_DISPATCH_BC0;
-  *(rime_ptr + 1) = 5; // sequence number
+  // remember my own broadcast sequence number
+  isSequenceNewAndStore(&UIP_IP_BUF->srcipaddr, lowpan_bc0_sequence);
+  *(rime_ptr + 1) = lowpan_bc0_sequence++; // sequence number
   rime_hdr_len += SICSLOWPAN_BC0_HDR_LEN;
   memcpy(rime_ptr + rime_hdr_len, UIP_IP_BUF, UIP_IPH_LEN);
   rime_hdr_len += UIP_IPH_LEN;
@@ -1371,12 +1443,6 @@ send_packet(rimeaddr_t *dest)
    * packetbuf attribute. The MAC layer can access the destination
    * address with the function packetbuf_addr(PACKETBUF_ADDR_RECEIVER).
    */
-	printf("send_packet sicslowpan\n");
-
-	PRINTLLADDR(dest);
-	PRINTF("\n");
-
-	PRINTSICSLOWPANBUF();
   packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, dest);
 
 #if NETSTACK_CONF_BRIDGE_MODE
@@ -1467,25 +1533,40 @@ output(const uip_lladdr_t *localdest)
 
   if(uip_len >= COMPRESSION_THRESHOLD) {
     /* Try to compress the headers */
-#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC1
-	  printf("siclowpan: Using HC1 compression.\n");
-    compress_hdr_hc1(&dest);
-#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC1 */
-#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6
-    printf("sicslowpan: Using IPv6 compression.\n");
-    compress_hdr_ipv6(&dest);
-#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6 */
-#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06
-    printf("sicslowpan: Using HC06.\n");
-    compress_hdr_hc06(&dest);
-#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06 */
-  } else {
-	printf("sicslowpan: else Using IPv6 compression.\n");
-    compress_hdr_ipv6(&dest);
+	  if(localdest == NULL){ // brodcast packet --> use LOWPAN_BC0
+		  printf("sicslowpan: Using BC0 compression.");
+		  compress_hdr_bc0(&dest);
+	  }
+	  else{
+		#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC1
+			  printf("sicslowpan: Using HC1 compression.\n");
+			compress_hdr_hc1(&dest);
+		#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC1 */
+		#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6
+			printf("sicslowpan: Using IPv6 compression.\n");
+			compress_hdr_ipv6(&dest);
+		#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6 */
+		#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06
+			printf("sicslowpan: Using HC06.\n");
+			compress_hdr_hc06(&dest);
+		#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06 */
+		  }
+  	  }
+  else
+  {
+	  if(localdest == NULL){ // brodcast packet --> use LOWPAN_BC0
+		  printf("sicslowpan: Using BC0 compression.");
+		  compress_hdr_bc0(&dest);
+	  }
+	  else{
+		printf("sicslowpan: else Using IPv6 compression.\n");
+		compress_hdr_ipv6(&dest);
+	  }
   }
+
   PRINTFO("sicslowpan output: header of len %d\n", rime_hdr_len);
 
-  /* Calculate NETSTACK_FRAMER's header length, that will be added in the NETSTACK_RDC.
+  /* Calculate  NETSTACK_FRAMER's header length, that will be added in the NETSTACK_RDC.
    * We calculate it here only to make a better decision of whether the outgoing packet
    * needs to be fragmented or not. */
 #define USE_FRAMER_HDRLEN 1
@@ -1808,6 +1889,26 @@ input(void)
       rime_hdr_len += UIP_IPH_LEN;
       uncomp_hdr_len += UIP_IPH_LEN;
       break;
+    case SICSLOWPAN_DISPATCH_BC0:
+          PRINTFI("sicslowpan input: BC0\n");
+          rime_hdr_len += SICSLOWPAN_BC0_HDR_LEN;
+
+
+
+
+          /* Put uncompressed IP header in sicslowpan_buf. */
+          memcpy(SICSLOWPAN_IP_BUF, rime_ptr + rime_hdr_len, UIP_IPH_LEN);
+
+          // re-transmit packet
+          PRINTF("MESH UNDER RE-TRANSMIT!\n");
+          PRINT6ADDR(&SICSLOWPAN_IP_BUF->srcipaddr);
+          debug_ipv6_sequence_buffer();
+          send_packet(&rimeaddr_null);
+
+          /* Update uncomp_hdr_len and rime_hdr_len. */
+          rime_hdr_len += UIP_IPH_LEN;
+          uncomp_hdr_len += UIP_IPH_LEN;
+          break;
     default:
       /* unknown header */
       PRINTFI("sicslowpan input: unknown dispatch: %u\n",

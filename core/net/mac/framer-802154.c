@@ -42,7 +42,7 @@
 #include "lib/random.h"
 #include <string.h>
 
-#define DEBUG DEBUG_FULL
+#define DEBUG DEBUG_NONE
 
 #if DEBUG
 #include <stdio.h>
@@ -92,7 +92,6 @@ is_broadcast_addr(uint8_t mode, uint8_t *addr)
 static int
 create(void)
 {
-	printf("framer-802-15-4 create.\n");
   frame802154_t params;
   int len;
 
@@ -164,12 +163,6 @@ create(void)
 
   /* Set the source PAN ID to the global variable. */
   params.src_pid = mac_src_pan_id;
-
-  printf("DEST PAN ID: %04x\n", params.dest_pid);
-  printf("DEST ADDR MODE: %04x\n", params.fcf.dest_addr_mode);
-  printf("DEST ADDR: %04x\n", *((uint16_t *)  &params.dest_addr));
-  printf("SRC PAN ID: %04x\n", params.src_pid);
-  printf("SRC ADDR MODE: %04x\n", params.fcf.src_addr_mode);
 
   /*
    * Set up the source address using only the long address mode for
