@@ -45,7 +45,7 @@
 
 #define UDP_PORT 5683
 
-#define SEND_INTERVAL		(10 * CLOCK_SECOND)
+#define SEND_INTERVAL		(5 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
 
 #define DEBUG 1

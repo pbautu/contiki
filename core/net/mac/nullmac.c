@@ -45,6 +45,7 @@
 static void
 send_packet(mac_callback_t sent, void *ptr)
 {
+	printf("send packet nullmac\n");
   NETSTACK_RDC.send(sent, ptr);
 }
 /*---------------------------------------------------------------------------*/

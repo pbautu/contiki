@@ -47,6 +47,8 @@
 uint8_t
 uip_driver_send(void)
 {
+
+  printf("uip_driver_send\n");
   packetbuf_copyfrom(&uip_buf[UIP_LLH_LEN], uip_len);
 
   /* XXX we should provide a callback function that is called when the
@@ -62,6 +64,7 @@ init(void)
    * Set out output function as the function to be called from uIP to
    * send a packet.
    */
+	printf("DDDDDDDDDDDDDD UIP-driver\n");
   tcpip_set_outputfunc(uip_driver_send);
 }
 /*--------------------------------------------------------------------*/

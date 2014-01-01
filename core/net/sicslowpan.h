@@ -80,6 +80,7 @@
 #define SICSLOWPAN_DISPATCH_IPHC                    0x60 /* 011xxxxx = ... */
 #define SICSLOWPAN_DISPATCH_FRAG1                   0xc0 /* 11000xxx */
 #define SICSLOWPAN_DISPATCH_FRAGN                   0xe0 /* 11100xxx */
+#define SICSLOWPAN_DISPATCH_BC0						0x50 /* 01010000 = 80 */
 /** @} */
 
 /** \name HC1 encoding
@@ -173,6 +174,7 @@
 #define SICSLOWPAN_HC1_HC_UDP_HDR_LEN               7
 #define SICSLOWPAN_FRAG1_HDR_LEN                    4
 #define SICSLOWPAN_FRAGN_HDR_LEN                    5
+#define SICSLOWPAN_BC0_HDR_LEN						1
 /** @} */
 
 /**

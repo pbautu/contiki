@@ -32,7 +32,7 @@
 
 #include "net/mac/mac.h"
 
-#define DEBUG 0
+#define DEBUG DEBUG_FULL
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)

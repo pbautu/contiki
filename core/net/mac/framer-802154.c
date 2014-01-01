@@ -42,16 +42,19 @@
 #include "lib/random.h"
 #include <string.h>
 
-#define DEBUG 0
+#define DEBUG DEBUG_FULL
 
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINTADDR(addr) PRINTF(" %02x%02x:%02x%02x:%02x%02x:%02x%02x ", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7])
+
 #else
 #define PRINTF(...)
 #define PRINTADDR(addr)
 #endif
+
+#define PRINTPAN(addr) PRINTF(" %02x%02x ", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1])
 
 /**  \brief The sequence number (0x00 - 0xff) added to the transmitted
  *   data or MAC command frame. The default is a random value within
@@ -89,6 +92,7 @@ is_broadcast_addr(uint8_t mode, uint8_t *addr)
 static int
 create(void)
 {
+	printf("framer-802-15-4 create.\n");
   frame802154_t params;
   int len;
 
@@ -136,6 +140,7 @@ create(void)
   }
   params.dest_pid = mac_dst_pan_id;
 
+
   /*
    *  If the output address is NULL in the Rime buf, then it is broadcast
    *  on the 802.15.4 network.
@@ -159,6 +164,12 @@ create(void)
 
   /* Set the source PAN ID to the global variable. */
   params.src_pid = mac_src_pan_id;
+
+  printf("DEST PAN ID: %04x\n", params.dest_pid);
+  printf("DEST ADDR MODE: %04x\n", params.fcf.dest_addr_mode);
+  printf("DEST ADDR: %04x\n", *((uint16_t *)  &params.dest_addr));
+  printf("SRC PAN ID: %04x\n", params.src_pid);
+  printf("SRC ADDR MODE: %04x\n", params.fcf.src_addr_mode);
 
   /*
    * Set up the source address using only the long address mode for

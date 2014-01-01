@@ -71,7 +71,7 @@
 
 #include <stdio.h>
 
-#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_FULL
 #include "net/uip-debug.h"
 #if DEBUG
 /* PRINTFI and PRINTFO are defined for input and output to debug one without changing the timing of the other */
@@ -88,6 +88,20 @@ uint8_t p;
 #define PRINTPACKETBUF()
 #define PRINTUIPBUF()
 #define PRINTSICSLOWPANBUF()
+
+#define PRINTF(...) printf(__VA_ARGS__)
+#define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
+#define PRINTLLADDR(lladdr) PRINTF(" %02x:%02x:%02x:%02x:%02x:%02x ",(lladdr)->addr[0], (lladdr)->addr[1], (lladdr)->addr[2], (lladdr)->addr[3],(lladdr)->addr[4], (lladdr)->addr[5])
+#define PRINTBITS(buf,len) { \
+      int i,j=0; \
+      for (i=0; i<len; ++i) { \
+        for (j=7; j>=0; --j) { \
+          PRINTF("%c", (((char *)buf)[i] & 1<<j) ? '1' : '0'); \
+        } \
+        PRINTF(" "); \
+      } \
+    }
+
 #endif /* DEBUG == 1*/
 
 #if UIP_LOGGING
@@ -1295,6 +1309,37 @@ compress_hdr_ipv6(rimeaddr_t *rime_destaddr)
   uncomp_hdr_len += UIP_IPH_LEN;
   return;
 }
+
+/*--------------------------------------------------------------------*/
+/** \name LOWPAN_BC0 header compression
+ * @{                                                                 */
+/*--------------------------------------------------------------------*/
+/* \brief LOWPAN_BC0 header for multicasting
+ *
+ * For flooding based multicasting a simple 8 bit sequence
+ * number is used to avoid re-transmission of an already seen
+ * multicast packet.
+ *
+ * \verbatim
+ * 0               1                   2                   3
+ * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * | LOWPAN_BC0    | SEQUENCE NR   |IPv6 header and payload ...
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * \endverbatim
+ */
+static void
+compress_hdr_bc0(rimeaddr_t *rime_destaddr)
+{
+  *rime_ptr = SICSLOWPAN_DISPATCH_BC0;
+  rime_hdr_len += SICSLOWPAN_IPV6_HDR_LEN;
+  memcpy(rime_ptr + rime_hdr_len, UIP_IP_BUF, UIP_IPH_LEN);
+  rime_hdr_len += UIP_IPH_LEN;
+  uncomp_hdr_len += UIP_IPH_LEN;
+  return;
+}
+
+static void
 /** @} */
 
 /*--------------------------------------------------------------------*/
@@ -1327,6 +1372,12 @@ send_packet(rimeaddr_t *dest)
    * packetbuf attribute. The MAC layer can access the destination
    * address with the function packetbuf_addr(PACKETBUF_ADDR_RECEIVER).
    */
+	printf("send_packet sicslowpan\n");
+
+	PRINTLLADDR(dest);
+	PRINTF("\n");
+
+	PRINTSICSLOWPANBUF();
   packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, dest);
 
 #if NETSTACK_CONF_BRIDGE_MODE
@@ -1360,6 +1411,7 @@ send_packet(rimeaddr_t *dest)
 static uint8_t
 output(const uip_lladdr_t *localdest)
 {
+  PRINTF("IN SICSLOWPAN OUTPUT.\n");
   int framer_hdrlen;
 
   /* The MAC address of the destination of the packet */
@@ -1406,6 +1458,7 @@ output(const uip_lladdr_t *localdest)
    * broadcast packet.
    */
   if(localdest == NULL) {
+	  PRINTF("SENDING BROADCAST FRAME.\n");
     rimeaddr_copy(&dest, &rimeaddr_null);
   } else {
     rimeaddr_copy(&dest, (const rimeaddr_t *)localdest);
@@ -1416,15 +1469,19 @@ output(const uip_lladdr_t *localdest)
   if(uip_len >= COMPRESSION_THRESHOLD) {
     /* Try to compress the headers */
 #if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC1
+	  printf("siclowpan: Using HC1 compression.\n");
     compress_hdr_hc1(&dest);
 #endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC1 */
 #if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6
+    printf("sicslowpan: Using IPv6 compression.\n");
     compress_hdr_ipv6(&dest);
 #endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6 */
 #if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06
+    printf("sicslowpan: Using HC06.\n");
     compress_hdr_hc06(&dest);
 #endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06 */
   } else {
+	printf("sicslowpan: else Using IPv6 compression.\n");
     compress_hdr_ipv6(&dest);
   }
   PRINTFO("sicslowpan output: header of len %d\n", rime_hdr_len);
@@ -1567,6 +1624,8 @@ output(const uip_lladdr_t *localdest)
     memcpy(rime_ptr + rime_hdr_len, (uint8_t *)UIP_IP_BUF + uncomp_hdr_len,
            uip_len - uncomp_hdr_len);
     packetbuf_set_datalen(uip_len - uncomp_hdr_len + rime_hdr_len);
+
+    PRINTF("# NOW SEND PACKET\n");
     send_packet(&dest);
   }
   return 1;

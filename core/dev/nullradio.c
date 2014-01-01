@@ -23,6 +23,7 @@ transmit(unsigned short transmit_len)
 static int
 send(const void *payload, unsigned short payload_len)
 {
+	printf("send null radio\n");
   prepare(payload, payload_len);
   return transmit(payload_len);
 }
