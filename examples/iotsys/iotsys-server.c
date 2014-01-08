@@ -189,12 +189,12 @@ uint8_t create_response_datapoint(int num, int accept, char *buffer, int asChild
 		size_msgp2 = 4;
 	} else {
 		PRINTF("Unsupported encoding!\n");
-		return -1;
+		return 0;
 	}
 
 	if ((size_temp = temp_to_default_buff()) < 0) {
 		PRINTF("Error preparing temperature string!\n");
-		return -1;
+		return 0;
 	}
 
 	size_msg = size_msgp1 + size_msgp2 + size_temp + 1;
@@ -221,7 +221,7 @@ uint8_t create_response_object(int num, int accept, char *buffer) {
 		size_msgp2 = 7;
 	} else {
 		PRINTF("Unsupported encoding!\n");
-		return -1;
+		return 0;
 	}
 
 	memcpy(buffer, msgp1, size_msgp1);
