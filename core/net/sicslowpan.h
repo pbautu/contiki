@@ -334,5 +334,10 @@ struct ipv6_sequence{
 	uip_ip6addr_t srcip;
 	uint8_t sequence;
 };
+
+static void
+send_packet(rimeaddr_t *dest);
 #endif /* SICSLOWPAN_H_ */
 /** @} */
+
+

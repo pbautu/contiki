@@ -66,6 +66,7 @@
 #include "net/rime.h"
 #include "net/sicslowpan.h"
 #include "net/netstack.h"
+#include "sys/ctimer.h"
 
 #if UIP_CONF_IPV6
 
@@ -347,6 +348,13 @@ int isSequenceNewAndStore(uip_ip6addr_t *srcip, uint8_t sequence){
 	cur_ipv6_sequence++;
 	// sequence was new
 	return 1;
+}
+
+static struct ctimer retransmit_timer;
+
+static void retransmit_callback(void *ptr){
+	printf("Retransmit callback called.\n");
+	send_packet(&rimeaddr_null);
 }
 
 
@@ -1727,6 +1735,7 @@ output(const uip_lladdr_t *localdest)
 static void
 input(void)
 {
+  uint16_t retransmission_wait_ms = 0;
   /* size of the IP packet (read from fragment) */
   uint16_t frag_size = 0;
   /* offset of the fragment in the IP packet */
@@ -1902,7 +1911,10 @@ input(void)
           if(isSequenceNewAndStore(&SICSLOWPAN_IP_BUF->srcipaddr, (uint8_t) *(rime_ptr +1))){
         	  printf("Sequence number is new -> retransmit.\n");
         	  //debug_ipv6_sequence_buffer();
-        	  send_packet(&rimeaddr_null);
+        	  retransmission_wait_ms = abs(random_rand() % 10); // max 100 ms
+        	  printf("Waiting %d ms before retransmit.\n", retransmission_wait_ms);
+        	  //send_packet(&rimeaddr_null);
+        	  ctimer_set(&retransmit_timer, (CLOCK_SECOND / 100) * retransmission_wait_ms, retransmit_callback, NULL);
           }
           else{
         	  printf("Packet is old.\n");
