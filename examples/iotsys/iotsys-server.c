@@ -969,7 +969,7 @@ void led_red_handler(void* request, void* response, uint8_t *buffer,
 	PRINTF(
 			"led_red_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
 	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
-	static char message[LED_MSG_MAX_SIZE];
+	static char message[BUTTON_MSG_MAX_SIZE];
 	static uint8_t size_msg;
 
 	char *err_msg;
@@ -1005,7 +1005,7 @@ void led_red_handler(void* request, void* response, uint8_t *buffer,
 /*
  * Green led
  */
-/*RESOURCE(led_green, METHOD_PUT | METHOD_GET, "leds/green",
+RESOURCE(led_green, METHOD_PUT | METHOD_GET, "leds/green",
 		"title=\"Green led\";rt=\"obix:Bool\"");
 
 void led_green_handler(void* request, void* response, uint8_t *buffer,
@@ -1013,7 +1013,7 @@ void led_green_handler(void* request, void* response, uint8_t *buffer,
 	PRINTF(
 			"led_green_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
 	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
-	static char message[LED_MSG_MAX_SIZE];
+	static char message[BUTTON_MSG_MAX_SIZE];
 	static uint8_t size_msg;
 
 	char *err_msg;
@@ -1044,7 +1044,7 @@ void led_green_handler(void* request, void* response, uint8_t *buffer,
 
 	send_message(message, size_msg, request, response, buffer, preferred_size,
 			offset);
-}*/
+}
 
 /*
  * Blue led
@@ -1057,7 +1057,7 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	PRINTF(
 			"led_blue_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
 	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
-	static char message[LED_MSG_MAX_SIZE];
+	static char message[BUTTON_MSG_MAX_SIZE];
 	static uint8_t size_msg;
 
 	char *err_msg;
@@ -1144,7 +1144,7 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 
 		rest_activate_resource(&resource_leds);
 		rest_activate_resource(&resource_led_red);
-		//rest_activate_resource(&resource_led_green);
+		rest_activate_resource(&resource_led_green);
 		//rest_activate_resource(&resource_led_blue);
 		//rest_activate_resource(&resource_toggle);
 
