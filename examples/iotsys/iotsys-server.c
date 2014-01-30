@@ -66,7 +66,7 @@
 #warning "IoTSyS server without CoAP-specifc functionality"
 #endif /* CoAP-specific example */
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -919,9 +919,9 @@ leds_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_
 {
 	PRINTF(
 			"leds handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
-	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
-	static char message[LED_MSG_MAX_SIZE];
-	static uint8_t size_msg;
+
+	char message[LED_MSG_MAX_SIZE];
+	uint8_t size_msg;
 
 	const uint16_t *accept = NULL;
 	int num = 0;
@@ -969,8 +969,8 @@ void led_red_handler(void* request, void* response, uint8_t *buffer,
 	PRINTF(
 			"led_red_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
 	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
-	static char message[BUTTON_MSG_MAX_SIZE];
-	static uint8_t size_msg;
+	char message[BUTTON_MSG_MAX_SIZE];
+	uint8_t size_msg;
 
 	char *err_msg;
 
@@ -1013,6 +1013,50 @@ void led_green_handler(void* request, void* response, uint8_t *buffer,
 	PRINTF(
 			"led_green_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
 	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
+	char message[BUTTON_MSG_MAX_SIZE];
+	uint8_t size_msg;
+
+	char *err_msg;
+
+	// Check the offset for boundaries of the resource data.
+	if (*offset >= CHUNKS_TOTAL) {
+		REST.set_response_status(response, REST.status.BAD_OPTION);
+		// A block error message should not exceed the minimum block size (16).
+		err_msg = "BlockOutOfScope";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	// compute message once
+	if (*offset <= 0) {
+		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+		if ((size_msg = create_response_datapoint_led(1,
+				REST.type.APPLICATION_XML, message, 0, 2)) <= 0) {
+			PRINTF("ERROR while creating message!\n");
+			REST.set_response_status(response,
+					REST.status.INTERNAL_SERVER_ERROR);
+			err_msg = "ERROR while creating message :\\";
+			REST.set_response_payload(response, err_msg, strlen(err_msg));
+			return;
+		}
+	}
+
+	send_message(message, size_msg, request, response, buffer, preferred_size,
+			offset);
+}
+
+/*
+ * Blue led
+ */
+RESOURCE(led_blue, METHOD_PUT | METHOD_GET, "leds/blue",
+		"title=\"Blue led\";rt=\"obix:Bool\"");
+
+void led_blue_handler(void* request, void* response, uint8_t *buffer,
+		uint16_t preferred_size, int32_t *offset) {
+	PRINTF(
+			"led_blue_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
+	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
 	static char message[BUTTON_MSG_MAX_SIZE];
 	static uint8_t size_msg;
 
@@ -1045,50 +1089,6 @@ void led_green_handler(void* request, void* response, uint8_t *buffer,
 	send_message(message, size_msg, request, response, buffer, preferred_size,
 			offset);
 }
-
-/*
- * Blue led
- */
-/*RESOURCE(led_blue, METHOD_PUT | METHOD_GET, "leds/blue",
-		"title=\"Blue led\";rt=\"obix:Bool\"");
-
-void led_blue_handler(void* request, void* response, uint8_t *buffer,
-		uint16_t preferred_size, int32_t *offset) {
-	PRINTF(
-			"led_blue_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
-	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
-	static char message[BUTTON_MSG_MAX_SIZE];
-	static uint8_t size_msg;
-
-	char *err_msg;
-
-	// Check the offset for boundaries of the resource data.
-	if (*offset >= CHUNKS_TOTAL) {
-		REST.set_response_status(response, REST.status.BAD_OPTION);
-		// A block error message should not exceed the minimum block size (16).
-		err_msg = "BlockOutOfScope";
-		REST.set_response_payload(response, err_msg, strlen(err_msg));
-		return;
-	}
-
-	// compute message once
-	if (*offset <= 0) {
-		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
-
-		if ((size_msg = create_response_datapoint_led(1,
-				REST.type.APPLICATION_XML, message, 0, 2)) <= 0) {
-			PRINTF("ERROR while creating message!\n");
-			REST.set_response_status(response,
-					REST.status.INTERNAL_SERVER_ERROR);
-			err_msg = "ERROR while creating message :\\";
-			REST.set_response_payload(response, err_msg, strlen(err_msg));
-			return;
-		}
-	}
-
-	send_message(message, size_msg, request, response, buffer, preferred_size,
-			offset);
-}*/
 
 RESOURCE(toggle, METHOD_POST, "actuators/toggle", "title=\"Red LED\";rt=\"Control\"");
 void
@@ -1145,7 +1145,7 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		rest_activate_resource(&resource_leds);
 		rest_activate_resource(&resource_led_red);
 		rest_activate_resource(&resource_led_green);
-		//rest_activate_resource(&resource_led_blue);
+		rest_activate_resource(&resource_led_blue);
 		//rest_activate_resource(&resource_toggle);
 
 		/* Setup events. */
