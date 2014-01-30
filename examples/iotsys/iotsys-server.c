@@ -50,6 +50,9 @@
 /* Z1 accelorometer */
 #include "dev/adxl345.h"
 
+/* Z1 leds */
+#include "dev/leds.h"
+
 /* For CoAP-specific example: not required for normal RESTful Web service. */
 #if WITH_COAP == 3
 #include "er-coap-03.h"
@@ -79,6 +82,7 @@
 #define TEMP_MSG_MAX_SIZE   140   // more than enough right now
 #define TEMP_BUFF_MAX       7     // -234.6\0
 #define BUTTON_MSG_MAX_SIZE 140   // more than enough right now
+#define LED_MSG_MAX_SIZE 	240   // more than enough right now
 #define BUTTON_BUFF_MAX     6     // true\0 false\0
 #define ACC_MSG_MAX_SIZE    140    // more than enough right now
 #define ACC_BUFF_MAX        11    // freefall\0 activity\0 inactivity\0
@@ -104,6 +108,11 @@ char accstring[ACC_BUFF_MAX];
 acceleration_t acc;
 uint8_t acc_register_acc;
 process_event_t event_acc;
+
+int led_red = 0;
+int led_blue = 0;
+int led_green = 0;
+
 /******************************************************************************/
 /* helper functions ***********************************************************/
 /******************************************************************************/
@@ -356,11 +365,11 @@ uint8_t create_response_datapoint_acc(int num, int accept, char *buffer,
 
 	if (num && accept == REST.type.APPLICATION_XML) {
 		if (asChild) {
-			msgp1 = "<str href=\"acc/value\" val=\"";
-			size_msgp1 = 27;
+			msgp1 = "<bool href=\"acc/active\" val=\"";
+			size_msgp1 = 29;
 		} else {
-			msgp1 = "<str href=\"value\" val=\"";
-			size_msgp1 = 23;
+			msgp1 = "<bool href=\"active\" val=\"";
+			size_msgp1 = 25;
 		}
 		msgp2 = "\"/>\0";
 		size_msgp2 = 4;
@@ -390,9 +399,9 @@ uint8_t create_response_object_acc(int num, int accept, char *buffer) {
 	uint8_t size_msg;
 
 	if (num && accept == REST.type.APPLICATION_XML) {
-		msgp1 = "<obj href=\"acc\" is=\"iot:Sensor\">";
+		msgp1 = "<obj href=\"acc\" is=\"iot:ActivitySensor\">";
 		msgp2 = "</obj>\0";
-		size_msgp1 = 32;
+		size_msgp1 = 40;
 		size_msgp2 = 7;
 	} else {
 		PRINTF("Unsupported encoding!\n");
@@ -712,7 +721,7 @@ void acc_handler(void* request, void* response, uint8_t *buffer,
 }
 
 /*
- * Example for an event resource.
+ * Accelerometer.
  */
 EVENT_RESOURCE(event_acc, METHOD_GET, "acc/value",
 		"title=\"Acceleration Value\";obs");
@@ -788,6 +797,306 @@ void event_acc_event_handler(resource_t *r) {
 	REST.notify_subscribers(r, acc_events, notification);
 }
 
+/* Leds */
+uint8_t create_response_datapoint_led(int num, int accept, char *buffer,
+		int asChild, int color) {
+	int size_msgp1, size_msgp2, size_msgp3, size_color;
+	const char *msgp1, *msgp2, *msgp3, *msgp_red, *msgp_blue, *msgp_green;
+	char *msgp_color; // will point to red, blue or green
+	int value = 0; // on or off, depending on led
+	const char *msg_true;
+	const char *msg_false;
+	char *msgp_value;
+	int size_msgp_value = 0;
+
+	msg_true = "true";
+	msg_false = "false";
+
+	msgp_red = "red";
+	msgp_blue = "blue";
+	msgp_green = "green";
+
+	uint8_t size_msg;
+
+	if (num && accept == REST.type.APPLICATION_XML) {
+		if (asChild) {
+			msgp1 =	"<bool href=\"leds/";
+			size_msgp1 = 17;
+
+		} else {
+			msgp1 = "<bool href=\"";
+			size_msgp1 = 12;
+		}
+		msgp2 = "\" val=\"";
+		size_msgp2 = 7;
+		msgp3 = "\"/>\0";
+		size_msgp3 = 4;
+	} else {
+		PRINTF("Unsupported encoding!\n");
+		return 0;
+	}
+
+	memcpy(buffer, msgp1, size_msgp1);
+
+	if(color == 0){ // red
+		msgp_color = msgp_red;
+		size_color = 3;
+		if(led_red == 1){
+			value = 1;
+		}
+	} else if(color == 1){
+		msgp_color = msgp_blue;
+		size_color = 4;
+		if(led_blue == 1){
+		  value = 1;
+		}
+	} else if(color == 2){
+		msgp_color = msgp_green;
+		size_color = 5;
+
+		if(led_green == 1){
+			value = 1;
+		}
+	}
+
+	if( value == 1){
+		msgp_value = msg_true;
+		size_msgp_value = 4;
+	}
+	else{
+		msgp_value = msg_false;
+		size_msgp_value = 5;
+	}
+	memcpy(buffer + size_msgp1, msgp_color, size_color);
+	memcpy(buffer + size_msgp1 + size_color, msgp2, size_msgp2);
+
+	memcpy(buffer + size_msgp1 + size_color + size_msgp2, msgp_value, size_msgp_value);
+
+	memcpy(buffer + size_msgp1 + size_color + size_msgp2 + size_msgp_value, msgp3, size_msgp3);
+
+	size_msg = size_msgp1 + size_msgp2 + size_msgp_value + size_color + size_msgp3;
+
+	return size_msg;
+}
+
+uint8_t create_response_object_led(int num, int accept, char *buffer) {
+	int size_datapoint_red;
+	int size_datapoint_green;
+	int size_datapoint_blue;
+	int size_msgp1, size_msgp2;
+	const char *msgp1, *msgp2;
+	uint8_t size_msg;
+
+	if (num && accept == REST.type.APPLICATION_XML) {
+		msgp1 = "<obj href=\"leds\" is=\"iot:LedsActuator\">";
+		msgp2 = "</obj>\0";
+		size_msgp1 = 39;
+		size_msgp2 = 7;
+	} else {
+		PRINTF("Unsupported encoding!\n");
+		return 0;
+	}
+
+	memcpy(buffer, msgp1, size_msgp1);
+	// creates bool data point and copies content to message buffer
+	size_datapoint_red = create_response_datapoint_led(num, accept,
+			buffer + size_msgp1, 0, 0);
+	size_datapoint_green = create_response_datapoint_led(num, accept, buffer + size_msgp1 + size_datapoint_red, 0,1);
+
+	size_datapoint_blue = create_response_datapoint_led(num, accept, buffer + size_msgp1 + size_datapoint_red + size_datapoint_blue + size_datapoint_green, 0,2);
+
+	memcpy(buffer + size_msgp1 + size_datapoint_red + size_datapoint_green + size_datapoint_blue, msgp2, size_msgp2);
+
+	size_msg = size_msgp1 + size_msgp2 + size_datapoint_red + size_datapoint_green + size_datapoint_blue;
+
+	return size_msg;
+}
+
+RESOURCE(leds, METHOD_GET | METHOD_PUT , "leds", "title=\"Leds Actuator\";rt=\"iot:actuator\"");
+
+void
+leds_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
+{
+	PRINTF(
+			"leds handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
+	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
+	static char message[BUTTON_MSG_MAX_SIZE];
+	static uint8_t size_msg;
+
+	const uint16_t *accept = NULL;
+	int num = 0;
+	char *err_msg;
+
+	/* Check the offset for boundaries of t        he resource data. */
+	if (*offset >= CHUNKS_TOTAL) {
+		REST.set_response_status(response, REST.status.BAD_OPTION);
+		/* A block error message should not exceed the minimum block size (16). */
+		err_msg = "BlockOutOfScope";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	/* compute message once */
+	if (*offset <= 0) {
+		/* decide upon content-format */
+		num = REST.get_header_accept(request, &accept);
+
+		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+		if ((size_msg = create_response_object_led(num, accept[0], message))
+				<= 0) {
+			PRINTF("ERROR while creating message!\n");
+			REST.set_response_status(response,
+					REST.status.INTERNAL_SERVER_ERROR);
+			err_msg = "ERROR while creating message :\\";
+			REST.set_response_payload(response, err_msg, strlen(err_msg));
+			return;
+		}
+	}
+
+	send_message(message, size_msg, request, response, buffer, preferred_size,
+			offset);
+}
+
+/*
+ * Red led
+ */
+/*RESOURCE(led_red, METHOD_PUT | METHOD_GET, "leds2/red",
+		"title=\"Red led\";rt=\"obix:Bool\"");
+
+void led_red_handler(void* request, void* response, uint8_t *buffer,
+		uint16_t preferred_size, int32_t *offset) {
+	PRINTF(
+			"led_red_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
+	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
+	static char message[LED_MSG_MAX_SIZE];
+	static uint8_t size_msg;
+
+	char *err_msg;
+
+	// Check the offset for boundaries of the resource data.
+	if (*offset >= CHUNKS_TOTAL) {
+		REST.set_response_status(response, REST.status.BAD_OPTION);
+		// A block error message should not exceed the minimum block size (16).
+		err_msg = "BlockOutOfScope";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	// compute message once
+	if (*offset <= 0) {
+		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+		if ((size_msg = create_response_datapoint_led(1,
+				REST.type.APPLICATION_XML, message, 0, 0)) <= 0) {
+			PRINTF("ERROR while creating message!\n");
+			REST.set_response_status(response,
+					REST.status.INTERNAL_SERVER_ERROR);
+			err_msg = "ERROR while creating message :\\";
+			REST.set_response_payload(response, err_msg, strlen(err_msg));
+			return;
+		}
+	}
+
+	send_message(message, size_msg, request, response, buffer, preferred_size,
+			offset);
+}*/
+
+/*
+ * Green led
+ */
+/*RESOURCE(led_green, METHOD_PUT | METHOD_GET, "leds/green",
+		"title=\"Green led\";rt=\"obix:Bool\"");
+
+void led_green_handler(void* request, void* response, uint8_t *buffer,
+		uint16_t preferred_size, int32_t *offset) {
+	PRINTF(
+			"led_green_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
+	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
+	static char message[LED_MSG_MAX_SIZE];
+	static uint8_t size_msg;
+
+	char *err_msg;
+
+	// Check the offset for boundaries of the resource data.
+	if (*offset >= CHUNKS_TOTAL) {
+		REST.set_response_status(response, REST.status.BAD_OPTION);
+		// A block error message should not exceed the minimum block size (16).
+		err_msg = "BlockOutOfScope";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	// compute message once
+	if (*offset <= 0) {
+		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+		if ((size_msg = create_response_datapoint_led(1,
+				REST.type.APPLICATION_XML, message, 0, 1)) <= 0) {
+			PRINTF("ERROR while creating message!\n");
+			REST.set_response_status(response,
+					REST.status.INTERNAL_SERVER_ERROR);
+			err_msg = "ERROR while creating message :\\";
+			REST.set_response_payload(response, err_msg, strlen(err_msg));
+			return;
+		}
+	}
+
+	send_message(message, size_msg, request, response, buffer, preferred_size,
+			offset);
+}*/
+
+/*
+ * Blue led
+ */
+/*RESOURCE(led_blue, METHOD_PUT | METHOD_GET, "leds/blue",
+		"title=\"Blue led\";rt=\"obix:Bool\"");
+
+void led_blue_handler(void* request, void* response, uint8_t *buffer,
+		uint16_t preferred_size, int32_t *offset) {
+	PRINTF(
+			"led_blue_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
+	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
+	static char message[LED_MSG_MAX_SIZE];
+	static uint8_t size_msg;
+
+	char *err_msg;
+
+	// Check the offset for boundaries of the resource data.
+	if (*offset >= CHUNKS_TOTAL) {
+		REST.set_response_status(response, REST.status.BAD_OPTION);
+		// A block error message should not exceed the minimum block size (16).
+		err_msg = "BlockOutOfScope";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	// compute message once
+	if (*offset <= 0) {
+		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+		if ((size_msg = create_response_datapoint_led(1,
+				REST.type.APPLICATION_XML, message, 0, 2)) <= 0) {
+			PRINTF("ERROR while creating message!\n");
+			REST.set_response_status(response,
+					REST.status.INTERNAL_SERVER_ERROR);
+			err_msg = "ERROR while creating message :\\";
+			REST.set_response_payload(response, err_msg, strlen(err_msg));
+			return;
+		}
+	}
+
+	send_message(message, size_msg, request, response, buffer, preferred_size,
+			offset);
+}*/
+
+RESOURCE(toggle, METHOD_POST, "actuators/toggle", "title=\"Red LED\";rt=\"Control\"");
+void
+toggle_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
+{
+  leds_toggle(LEDS_RED);
+}
+
 PROCESS(iotsys_server, "IoTSyS");
 AUTOSTART_PROCESSES(&iotsys_server);
 
@@ -833,6 +1142,12 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		rest_activate_resource(&resource_button);
 		rest_activate_event_resource(&resource_event_tap);
 
+		rest_activate_resource(&resource_leds);
+		//rest_activate_resource(&resource_led_red);
+		//rest_activate_resource(&resource_led_green);
+		//rest_activate_resource(&resource_led_blue);
+		//rest_activate_resource(&resource_toggle);
+
 		/* Setup events. */
 		event_tap = process_alloc_event();
 		event_acc = process_alloc_event();
@@ -856,8 +1171,10 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		while (1) {
 			PROCESS_WAIT_EVENT();
 			if (ev == event_tap) {
+				printf("Tap event occured.\n");
 				event_tap_event_handler(&resource_event_tap);
 			} else if (ev == event_acc) {
+				printf("Acc event occured.\n");
 				event_acc_event_handler(&resource_event_acc);
 			}
 		} /* while (1) */
