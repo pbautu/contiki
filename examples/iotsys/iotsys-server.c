@@ -920,7 +920,7 @@ leds_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_
 	PRINTF(
 			"leds handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
 	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
-	static char message[BUTTON_MSG_MAX_SIZE];
+	static char message[LED_MSG_MAX_SIZE];
 	static uint8_t size_msg;
 
 	const uint16_t *accept = NULL;
@@ -961,7 +961,7 @@ leds_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_
 /*
  * Red led
  */
-/*RESOURCE(led_red, METHOD_PUT | METHOD_GET, "leds2/red",
+RESOURCE(led_red, METHOD_PUT | METHOD_GET, "leds/red",
 		"title=\"Red led\";rt=\"obix:Bool\"");
 
 void led_red_handler(void* request, void* response, uint8_t *buffer,
@@ -1000,7 +1000,7 @@ void led_red_handler(void* request, void* response, uint8_t *buffer,
 
 	send_message(message, size_msg, request, response, buffer, preferred_size,
 			offset);
-}*/
+}
 
 /*
  * Green led
@@ -1143,7 +1143,7 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		rest_activate_event_resource(&resource_event_tap);
 
 		rest_activate_resource(&resource_leds);
-		//rest_activate_resource(&resource_led_red);
+		rest_activate_resource(&resource_led_red);
 		//rest_activate_resource(&resource_led_green);
 		//rest_activate_resource(&resource_led_blue);
 		//rest_activate_resource(&resource_toggle);
