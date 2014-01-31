@@ -87,6 +87,12 @@
 #define ACC_MSG_MAX_SIZE    140    // more than enough right now
 #define ACC_BUFF_MAX        11    // freefall\0 activity\0 inactivity\0
 
+// Group communication definition
+#define MAX_GC_HANDLERS 2
+#define MAX_GC_GROUPS 5
+
+typedef void (*gc_handler) (char*);
+
 #define PUT_BUFFER_SIZE 140
 /******************************************************************************/
 /* typedefs, enums  ***********************************************************/
@@ -95,6 +101,15 @@
 typedef enum {
 	ACC_INACTIVITY, ACC_ACTIVITY, ACC_FREEFALL
 } acceleration_t;
+
+
+// Data structure for storing group communication assignments.
+// It is intended to store only the group identifier
+// of a transient link-local scope multicast address (FF:12::XXXX)
+typedef struct {
+	int group_identifier;
+	gc_handler handlers[MAX_GC_HANDLERS];
+} gc_handler_t;
 
 /******************************************************************************/
 /* globals ********************************************************************/
@@ -111,7 +126,9 @@ acceleration_t acc;
 uint8_t acc_register_acc;
 process_event_t event_acc;
 
-char put_buffer[PUT_BUFFER_SIZE];
+char payload_buffer[PUT_BUFFER_SIZE];
+
+gc_handler_t gc_handlers[MAX_GC_GROUPS];
 
 int led_red = 0;
 int led_blue = 0;
@@ -930,8 +947,8 @@ void led_red_handler(void* request, void* response, uint8_t *buffer,
 
 	if( REST.get_method_type(request) == METHOD_PUT){
 		payload_len = REST.get_request_payload(request, &incoming);
-		memcpy(put_buffer, incoming, payload_len);
-		newVal = get_bool_value_obix(put_buffer);
+		memcpy(payload_buffer, incoming, payload_len);
+		newVal = get_bool_value_obix(payload_buffer);
 		if(newVal){
 			leds_on(LEDS_RED);
 		}
@@ -989,8 +1006,8 @@ void led_green_handler(void* request, void* response, uint8_t *buffer,
 
 	if( REST.get_method_type(request) == METHOD_PUT){
 		payload_len = REST.get_request_payload(request, &incoming);
-		memcpy(put_buffer, incoming, payload_len);
-		newVal = get_bool_value_obix(put_buffer);
+		memcpy(payload_buffer, incoming, payload_len);
+		newVal = get_bool_value_obix(payload_buffer);
 		if(newVal){
 			leds_on(LEDS_GREEN);
 		}
@@ -1026,10 +1043,61 @@ void led_green_handler(void* request, void* response, uint8_t *buffer,
 			offset);
 }
 
+
+/*
+ * Handles group communication updates.
+ */
+void led_blue_groupCommHandler(char* payload){
+	int newVal;
+	newVal = get_bool_value_obix(payload);
+	if(newVal){
+		leds_on(LEDS_BLUE);
+	}
+	else{
+		leds_off(LEDS_BLUE);
+	}
+}
+
+// creates an IPv6 address from the provided string
+// note: the provided string is manipulated.
+void get_ipv6_multicast_addr(char* input, uip_ip6addr_t* address){
+	// first draft, assume an IPv6 address with explicit notation like FF12:0000:0000:0000:0000:0000:0000:0001
+
+	// in this case the address shall be an char array with 32 (hex chars) + 7 (: delim) + 1 string delimiter
+	// replace all : with a whitespace
+	char* curChar;
+	char* pEnd;
+	int addr1, addr2,addr3, addr4, addr5, addr6, addr7, addr8;
+
+	// move to the beginning of the IPv6 address --> assume it starts with FF
+	input = strstr(input, "FF");
+
+	curChar = strchr(input, ':');
+
+	while (curChar != NULL)
+	{
+	   *curChar = ' '; // replace : with space
+	   curChar=strchr(curChar+1,':');
+	}
+
+
+	addr1 = strtol(input,&pEnd,16); // FF12 block
+	addr2 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr3 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr4 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr5 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr6 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr7 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr8 = strtol(pEnd, &pEnd,16); // 0000 block
+
+	// create ipv6 address with 16 bit words
+	uip_ip6addr(address,addr1, addr2, addr3, addr4, addr5, addr6, addr7, addr8); // 0001 block
+}
+
 /*
  * Blue led
  */
-RESOURCE(led_blue, METHOD_PUT | METHOD_GET, "leds/blue",
+RESOURCE(led_blue, METHOD_PUT | METHOD_GET | HAS_SUB_RESOURCES | METHOD_POST, "leds/blue",
 		"title=\"Blue led\";rt=\"obix:Bool\"");
 
 void led_blue_handler(void* request, void* response, uint8_t *buffer,
@@ -1042,13 +1110,45 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	const uint8_t *incoming = NULL;
 	static size_t payload_len = 0;
 	int newVal = 0;
+	uip_ip6addr_t groupAddress;
+	int i = 0;
+	uint8_t groupIdentifer = 0;
+
+
+	const char *uri_path = NULL;
+	int len = REST.get_url(request, &uri_path);
+
+	// for PUT and POST request we need to process the payload content
+	if( REST.get_method_type(request) == METHOD_PUT || REST.get_method_type(request) == METHOD_POST){
+		payload_len = REST.get_request_payload(request, &incoming);
+		memcpy(payload_buffer, incoming, payload_len);
+	}
+
+    if(strstr(uri_path, "joinGroup") && REST.get_method_type(request) == METHOD_POST ){
+    	PRINTF("Join group called.\n");
+    	get_ipv6_multicast_addr(payload_buffer, &groupAddress);
+    	PRINT6ADDR(&groupAddress);
+    	groupIdentifer =  ((uint8_t *)&groupAddress)[15];
+    	PRINTF("\n group identifier: %d\n", groupIdentifer);
+    	// use last 32 bits
+    	for(i = 0; i < MAX_GC_GROUPS; i++){
+    		if(gc_handlers[i].group_identifier == 0){ // free slot
+
+    			gc_handlers[i].group_identifier = groupIdentifer;
+    			//gc_handlers[i].group_identifier &= (groupAddress.u16[6] << 16);
+    			PRINTF("Assigned slot: %d\n", gc_handlers[i].group_identifier);
+    			break;
+    		}
+    	}
+    }
+    else if(strstr(uri_path, "leaveGroup") && REST.get_method_type(request) == METHOD_POST){
+    	PRINTF("Leave group called.\n");
+    }
 
 	char *err_msg;
 
 	if( REST.get_method_type(request) == METHOD_PUT){
-		payload_len = REST.get_request_payload(request, &incoming);
-		memcpy(put_buffer, incoming, payload_len);
-		newVal = get_bool_value_obix(put_buffer);
+		newVal = get_bool_value_obix(payload_buffer);
 		if(newVal){
 			leds_on(LEDS_BLUE);
 		}
