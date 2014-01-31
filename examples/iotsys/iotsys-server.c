@@ -1114,7 +1114,6 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	int i = 0;
 	uint8_t groupIdentifer = 0;
 
-
 	const char *uri_path = NULL;
 	int len = REST.get_url(request, &uri_path);
 
