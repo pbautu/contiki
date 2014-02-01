@@ -1141,11 +1141,8 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
     	PRINTF("Join group called.\n");
     	get_ipv6_multicast_addr(payload_buffer, &groupAddress);
     	PRINT6ADDR(&groupAddress);
-
     	groupIdentifier =  ((uint8_t *)&groupAddress)[14];
-    	PRINTF("\n group identifier: %d\n", groupIdentifier);
     	groupIdentifier <<= 8;
-    	PRINTF("\n group identifier: %d\n", groupIdentifier);
     	groupIdentifier += ((uint8_t *)&groupAddress)[15];
     	PRINTF("\n group identifier: %d\n", groupIdentifier);
 
@@ -1161,7 +1158,7 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
     			for(l=0; l < MAX_GC_HANDLERS; l++){
     				if(gc_handlers[i].handlers[l] == NULL ||  gc_handlers[i].handlers[l] == &led_blue_groupCommHandler ){
     					gc_handlers[i].handlers[l] = &led_blue_groupCommHandler;
-    					PRINTF("(Re-)Assigned callback.");
+    					PRINTF("(Re-)Assigned callback on slot %d\n", l);
     					break;
     				}
     			}
@@ -1171,6 +1168,31 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
     }
     else if(strstr(uri_path, "leaveGroup") && REST.get_method_type(request) == METHOD_POST){
     	PRINTF("Leave group called.\n");
+    	get_ipv6_multicast_addr(payload_buffer, &groupAddress);
+        PRINT6ADDR(&groupAddress);
+        groupIdentifier =  ((uint8_t *)&groupAddress)[14];
+        groupIdentifier <<= 8;
+        groupIdentifier += ((uint8_t *)&groupAddress)[15];
+        PRINTF("\n group identifier: %d\n", groupIdentifier);
+    	for(i = 0; i < MAX_GC_GROUPS; i++){
+			if(gc_handlers[i].group_identifier == groupIdentifier){ // free slot or same slot
+
+				gc_handlers[i].group_identifier = groupIdentifier;
+				//gc_handlers[i].group_identifier &= (groupAddress.u16[6] << 16);
+				PRINTF("Found slot: %d\n", gc_handlers[i].group_identifier);
+
+				// adding gc handler
+				for(l=0; l < MAX_GC_HANDLERS; l++){
+					PRINTF("Handler val %d: - Led Blue Group Comm Handler: %d\n", (uint16_t) gc_handlers[i].handlers[l], (uint16_t) &led_blue_groupCommHandler);
+					if(gc_handlers[i].handlers[l] == &led_blue_groupCommHandler ){
+						gc_handlers[i].handlers[l] = NULL;
+						PRINTF("Removed callback from slot %d\n", l);
+						break;
+					}
+				}
+				break;
+			}
+    	}
     }
 
 	char *err_msg;
