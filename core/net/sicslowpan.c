@@ -353,7 +353,7 @@ int isSequenceNewAndStore(uip_ip6addr_t *srcip, uint8_t sequence){
 static struct ctimer retransmit_timer;
 
 static void retransmit_callback(void *ptr){
-	printf("Retransmit callback called.\n");
+	PRINTF("Retransmit callback called.\n");
 	send_packet(&rimeaddr_null);
 }
 
@@ -1541,33 +1541,37 @@ output(const uip_lladdr_t *localdest)
 
   if(uip_len >= COMPRESSION_THRESHOLD) {
     /* Try to compress the headers */
-	  if(localdest == NULL){ // brodcast packet --> use LOWPAN_BC0
-		  printf("sicslowpan: Using BC0 compression.");
+	  if(localdest == NULL && ((uint8_t *)(&UIP_IP_BUF->destipaddr))[1] >> 4 ){ // broadcast packet --> use LOWPAN_BC0
+		  // check for transient ipv6 multicast address
+
+		  PRINTF("sicslowpan: Using BC0 compression.\n");
+		  PRINT6ADDR(&UIP_IP_BUF->destipaddr);
 		  compress_hdr_bc0(&dest);
 	  }
 	  else{
 		#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC1
-			  printf("sicslowpan: Using HC1 compression.\n");
+		  	PRINTF("sicslowpan: Using HC1 compression.\n");
 			compress_hdr_hc1(&dest);
 		#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC1 */
 		#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6
-			printf("sicslowpan: Using IPv6 compression.\n");
+			PRINTF("sicslowpan: Using IPv6 compression.\n");
 			compress_hdr_ipv6(&dest);
 		#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_IPV6 */
 		#if SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06
-			printf("sicslowpan: Using HC06.\n");
+			PRINTF("sicslowpan: Using HC06.\n");
 			compress_hdr_hc06(&dest);
 		#endif /* SICSLOWPAN_COMPRESSION == SICSLOWPAN_COMPRESSION_HC06 */
 		  }
   	  }
   else
   {
-	  if(localdest == NULL){ // brodcast packet --> use LOWPAN_BC0
-		  printf("sicslowpan: Using BC0 compression.");
+	  if(localdest == NULL && ((uint8_t *)(&UIP_IP_BUF->destipaddr))[1] >> 4 ){ // broadcast packet --> use LOWPAN_BC0 if transient ipv6 multicast address
+		  PRINTF("sicslowpan: Using BC0 compression.");
+		  PRINT6ADDR(&UIP_IP_BUF->destipaddr);
 		  compress_hdr_bc0(&dest);
 	  }
 	  else{
-		printf("sicslowpan: else Using IPv6 compression.\n");
+		PRINTF("sicslowpan: else Using IPv6 compression.\n");
 		compress_hdr_ipv6(&dest);
 	  }
   }
