@@ -45,7 +45,7 @@
 
 #define UDP_PORT 5683
 
-#define SEND_INTERVAL		(10 * CLOCK_SECOND)
+#define SEND_INTERVAL		(5 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
 
 #define DEBUG 1
@@ -108,6 +108,8 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     etimer_reset(&periodic_timer);
     etimer_set(&send_timer, SEND_TIME);
+    printf("### Send time is %d\n", (unsigned short) SEND_TIME);
+    printf("Current process name is %s\n", PROCESS_CURRENT()->name);
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
     printf("Sending broadcast\n");

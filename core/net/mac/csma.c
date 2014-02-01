@@ -55,7 +55,7 @@
 
 #include <stdio.h>
 
-#define DEBUG 0
+#define DEBUG DEBUG_NONE
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -151,6 +151,7 @@ default_timebase(void)
 static void
 transmit_packet_list(void *ptr)
 {
+	printf("Transmit packet list called.\n");
   struct neighbor_queue *n = ptr;
   if(n) {
     struct rdc_buf_list *q = list_head(n->queued_packet_list);
@@ -158,6 +159,7 @@ transmit_packet_list(void *ptr)
       PRINTF("csma: preparing number %d %p, queue len %d\n", n->transmissions, q,
           list_length(n->queued_packet_list));
       /* Send packets in the neighbor's list */
+      printf("Now sending over RDC.\n");
       NETSTACK_RDC.send_list(packet_sent, n, q);
     }
   }
@@ -310,6 +312,8 @@ send_packet(mac_callback_t sent, void *ptr)
   static uint16_t seqno;
   const rimeaddr_t *addr = packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
 
+
+  printf("send_packet csma\n");
   if(!initialized) {
     initialized = 1;
     /* Initialize the sequence number to a random value as per 802.15.4. */
@@ -326,6 +330,7 @@ send_packet(mac_callback_t sent, void *ptr)
   /* Look for the neighbor entry */
   n = neighbor_queue_from_addr(addr);
   if(n == NULL) {
+	printf("Allocating new neighbor entry.\n");
     /* Allocate a new neighbor entry */
     n = memb_alloc(&neighbor_memb);
     if(n != NULL) {
@@ -368,6 +373,7 @@ send_packet(mac_callback_t sent, void *ptr)
 	    list_add(n->queued_packet_list, q);
 	  }
 
+	  printf("Packet pushed, now send asap.\n");
 	  /* If q is the first packet in the neighbor's queue, send asap */
 	  if(list_head(n->queued_packet_list) == q) {
 	    ctimer_set(&n->transmit_timer, 0, transmit_packet_list, n);

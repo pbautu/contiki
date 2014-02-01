@@ -114,11 +114,13 @@ static uint8_t (* outputfunc)(const uip_lladdr_t *a);
 uint8_t
 tcpip_output(const uip_lladdr_t *a)
 {
+	PRINTF("TCP IP OUTPUT.\n");
   int ret;
   if(outputfunc != NULL) {
     ret = outputfunc(a);
     return ret;
   }
+  PRINTF("TCP IP OUTPUT. NO Func\n");
   UIP_LOG("tcpip_output: Use tcpip_set_outputfunc() to set an output function");
   return 0;
 }
@@ -539,6 +541,7 @@ tcpip_input(void)
 void
 tcpip_ipv6_output(void)
 {
+
   uip_ds6_nbr_t *nbr = NULL;
   uip_ipaddr_t *nexthop;
 
@@ -724,8 +727,10 @@ tcpip_ipv6_output(void)
     }
     return;
   }
+  PRINTF("NOW MULTICASTING\n");
   /* Multicast IP destination address. */
   tcpip_output(NULL);
+  PRINTF("AFTER TCPIP OUTPU.\n");
   uip_len = 0;
   uip_ext_len = 0;
 }

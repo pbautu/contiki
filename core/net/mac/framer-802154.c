@@ -42,16 +42,19 @@
 #include "lib/random.h"
 #include <string.h>
 
-#define DEBUG 0
+#define DEBUG DEBUG_NONE
 
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINTADDR(addr) PRINTF(" %02x%02x:%02x%02x:%02x%02x:%02x%02x ", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7])
+
 #else
 #define PRINTF(...)
 #define PRINTADDR(addr)
 #endif
+
+#define PRINTPAN(addr) PRINTF(" %02x%02x ", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1])
 
 /**  \brief The sequence number (0x00 - 0xff) added to the transmitted
  *   data or MAC command frame. The default is a random value within
@@ -135,6 +138,7 @@ create(void)
     params.fcf.src_addr_mode = FRAME802154_LONGADDRMODE;
   }
   params.dest_pid = mac_dst_pan_id;
+
 
   /*
    *  If the output address is NULL in the Rime buf, then it is broadcast
