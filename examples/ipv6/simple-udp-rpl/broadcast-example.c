@@ -45,8 +45,11 @@
 
 #define UDP_PORT 1234
 
-#define SEND_INTERVAL		(20 * CLOCK_SECOND)
+#define SEND_INTERVAL		(10 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
+#define PRINTF(...) printf(__VA_ARGS__)
+#define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
+
 
 static struct simple_udp_connection broadcast_connection;
 
@@ -63,7 +66,12 @@ receiver(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-  printf("Data received on port %d from port %d with length %d\n",
+
+	printf("Received on IPv6: ");
+	PRINT6ADDR(receiver_addr);
+	printf("\nSender addr: ");
+	PRINT6ADDR(sender_addr);
+	printf("\nData received on port %d from port %d with length %d\n",
          receiver_port, sender_port, datalen);
 }
 /*---------------------------------------------------------------------------*/
@@ -80,6 +88,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
                       receiver);
 
   etimer_set(&periodic_timer, SEND_INTERVAL);
+
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&periodic_timer));
     etimer_reset(&periodic_timer);
@@ -87,7 +96,8 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
     printf("Sending broadcast\n");
-    uip_create_linklocal_allnodes_mcast(&addr);
+    //uip_create_linklocal_allnodes_mcast(&addr);
+    uip_ip6addr(&addr, 0xff02, 0, 0, 0, 0, 0, 0, 0x0001);
     simple_udp_sendto(&broadcast_connection, "Test", 4, &addr);
   }
 

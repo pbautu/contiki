@@ -44,6 +44,9 @@
 #include "erbium.h"
 
 #define RES_TEMP 0
+#define RES_ACC 0
+#define RES_BUTTON 0
+#define RES_LEDS 1
 
 
 #if RES_TEMP
@@ -52,11 +55,15 @@
   #include "dev/tmp102.h"
 #endif // RES_TEMP
 
+#if RES_ACC
 /* Z1 accelorometer */
 #include "dev/adxl345.h"
+#endif // RES_ACC
 
+#if RES_LEDS
 /* Z1 leds */
 #include "dev/leds.h"
+#endif // RES_LEDS
 
 /* For CoAP-specific example: not required for normal RESTful Web service. */
 #if WITH_COAP == 3
@@ -71,7 +78,7 @@
 #warning "IoTSyS server without CoAP-specifc functionality"
 #endif /* CoAP-specific example */
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -102,11 +109,11 @@ typedef void (*gc_handler) (char*);
 /******************************************************************************/
 /* typedefs, enums  ***********************************************************/
 /******************************************************************************/
-
+#if RES_ACC
 typedef enum {
 	ACC_INACTIVITY, ACC_ACTIVITY, ACC_FREEFALL
 } acceleration_t;
-
+#endif
 
 // Data structure for storing group communication assignments.
 // It is intended to store only the group identifier
@@ -123,27 +130,71 @@ typedef struct {
 char tempstring[TEMP_BUFF_MAX];
 #endif
 
+
+#if RES_BUTTON
 char buttonstring[BUTTON_BUFF_MAX];
 uint8_t virtual_button;
 uint8_t acc_register_tap;
 process_event_t event_tap;
+#endif // RES_BUTTON
 
+#if RES_ACC
 char accstring[ACC_BUFF_MAX];
 acceleration_t acc;
 uint8_t acc_register_acc;
 process_event_t event_acc;
+#endif // RES_ACC
 
 char payload_buffer[PUT_BUFFER_SIZE];
 
 gc_handler_t gc_handlers[MAX_GC_GROUPS];
 
+#if RES_LEDS
 int led_red = 0;
 int led_blue = 0;
 int led_green = 0;
+#endif
 
 /******************************************************************************/
 /* helper functions ***********************************************************/
 /******************************************************************************/
+
+// creates an IPv6 address from the provided string
+// note: the provided string is manipulated.
+void get_ipv6_multicast_addr(char* input, uip_ip6addr_t* address){
+	// first draft, assume an IPv6 address with explicit notation like FF12:0000:0000:0000:0000:0000:0000:0001
+
+	// in this case the address shall be an char array with 32 (hex chars) + 7 (: delim) + 1 string delimiter
+	// replace all : with a whitespace
+	char* curChar;
+	char* pEnd;
+	int addr1, addr2,addr3, addr4, addr5, addr6, addr7, addr8;
+
+	// move to the beginning of the IPv6 address --> assume it starts with FF
+	input = strstr(input, "FF");
+
+	curChar = strchr(input, ':');
+
+	while (curChar != NULL)
+	{
+	   *curChar = ' '; // replace : with space
+	   curChar=strchr(curChar+1,':');
+	}
+
+
+	addr1 = strtol(input,&pEnd,16); // FF12 block
+	addr2 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr3 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr4 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr5 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr6 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr7 = strtol(pEnd, &pEnd,16); // 0000 block
+	addr8 = strtol(pEnd, &pEnd,16); // 0000 block
+
+	// create ipv6 address with 16 bit words
+	uip_ip6addr(address,addr1, addr2, addr3, addr4, addr5, addr6, addr7, addr8); // 0001 block
+}
+
 
 int get_bool_value_obix(char* obix_object){
 	PRINTF("Obix object is: %s\n", obix_object);
@@ -421,6 +472,7 @@ void value_periodic_handler(resource_t *r) {
 
 #endif // ENABLE TEMP
 
+#if RES_BUTTON
 int button_to_buff(char* buffer) {
 	if (virtual_button) {
 		return snprintf(buffer, BUTTON_BUFF_MAX, "true");
@@ -483,75 +535,6 @@ uint8_t create_response_object_button(char *buffer) {
 
 	return size_msg;
 }
-
-int acc_to_buff(char* buffer) {
-	if (acc == ACC_INACTIVITY) {
-		return snprintf(buffer, ACC_BUFF_MAX, "inactivity");
-	} else if (acc == ACC_ACTIVITY) {
-		return snprintf(buffer, ACC_BUFF_MAX, "activity");
-	}
-	return snprintf(buffer, ACC_BUFF_MAX, "freefall");
-}
-
-int acc_to_default_buff() {
-	return acc_to_buff(accstring);
-}
-
-uint8_t create_response_datapoint_acc(char *buffer, int asChild) {
-	size_t size_acc;
-	int size_msgp1, size_msgp2;
-	const char *msgp1, *msgp2;
-	uint8_t size_msg;
-
-
-	if (asChild) {
-		msgp1 = "<bool href=\"acc/active\" val=\"";
-		size_msgp1 = 29;
-	} else {
-		msgp1 = "<bool href=\"active\" val=\"";
-		size_msgp1 = 25;
-	}
-	msgp2 = "\"/>\0";
-	size_msgp2 = 4;
-
-
-	if ((size_acc = acc_to_default_buff()) < 0) {
-		PRINTF("Error preparing acc string!\n");
-		return 0;
-	}
-
-	size_msg = size_msgp1 + size_msgp2 + size_acc + 1;
-
-	memcpy(buffer, msgp1, size_msgp1);
-	memcpy(buffer + size_msgp1, accstring, size_acc);
-	memcpy(buffer + size_msgp1 + size_acc, msgp2, size_msgp2 + 1);
-
-	return size_msg;
-}
-
-uint8_t create_response_object_acc(char *buffer) {
-	size_t size_datapoint;
-	int size_msgp1, size_msgp2;
-	const char *msgp1, *msgp2;
-	uint8_t size_msg;
-
-	msgp1 = "<obj href=\"acc\" is=\"iot:ActivitySensor\">";
-	msgp2 = "</obj>\0";
-	size_msgp1 = 40;
-	size_msgp2 = 7;
-
-	memcpy(buffer, msgp1, size_msgp1);
-	// creates data point and copies content to message buffer
-	size_datapoint = create_response_datapoint_acc(buffer + size_msgp1, 1);
-
-	memcpy(buffer + size_msgp1 + size_datapoint, msgp2, size_msgp2 + 1);
-
-	size_msg = size_msgp1 + size_msgp2 + size_datapoint + 1;
-
-	return size_msg;
-}
-
-
 
 /*
  * Example for an oBIX button sensor.
@@ -665,6 +648,75 @@ void event_tap_event_handler(resource_t *r) {
 
 	/* Notify the registered observers with the given message type, observe option, and payload. */
 	REST.notify_subscribers(r, button_presses, notification);
+}
+#endif //RES_BUTTON
+
+#if RES_ACC
+int acc_to_buff(char* buffer) {
+	if (acc == ACC_INACTIVITY) {
+		return snprintf(buffer, ACC_BUFF_MAX, "inactivity");
+	} else if (acc == ACC_ACTIVITY) {
+		return snprintf(buffer, ACC_BUFF_MAX, "activity");
+	}
+	return snprintf(buffer, ACC_BUFF_MAX, "freefall");
+}
+
+int acc_to_default_buff() {
+	return acc_to_buff(accstring);
+}
+
+uint8_t create_response_datapoint_acc(char *buffer, int asChild) {
+	size_t size_acc;
+	int size_msgp1, size_msgp2;
+	const char *msgp1, *msgp2;
+	uint8_t size_msg;
+
+
+	if (asChild) {
+		msgp1 = "<bool href=\"acc/active\" val=\"";
+		size_msgp1 = 29;
+	} else {
+		msgp1 = "<bool href=\"active\" val=\"";
+		size_msgp1 = 25;
+	}
+	msgp2 = "\"/>\0";
+	size_msgp2 = 4;
+
+
+	if ((size_acc = acc_to_default_buff()) < 0) {
+		PRINTF("Error preparing acc string!\n");
+		return 0;
+	}
+
+	size_msg = size_msgp1 + size_msgp2 + size_acc + 1;
+
+	memcpy(buffer, msgp1, size_msgp1);
+	memcpy(buffer + size_msgp1, accstring, size_acc);
+	memcpy(buffer + size_msgp1 + size_acc, msgp2, size_msgp2 + 1);
+
+	return size_msg;
+}
+
+uint8_t create_response_object_acc(char *buffer) {
+	size_t size_datapoint;
+	int size_msgp1, size_msgp2;
+	const char *msgp1, *msgp2;
+	uint8_t size_msg;
+
+	msgp1 = "<obj href=\"acc\" is=\"iot:ActivitySensor\">";
+	msgp2 = "</obj>\0";
+	size_msgp1 = 40;
+	size_msgp2 = 7;
+
+	memcpy(buffer, msgp1, size_msgp1);
+	// creates data point and copies content to message buffer
+	size_datapoint = create_response_datapoint_acc(buffer + size_msgp1, 1);
+
+	memcpy(buffer + size_msgp1 + size_datapoint, msgp2, size_msgp2 + 1);
+
+	size_msg = size_msgp1 + size_msgp2 + size_datapoint + 1;
+
+	return size_msg;
 }
 
 /*
@@ -787,7 +839,9 @@ void event_acc_event_handler(resource_t *r) {
 	/* Notify the registered observers with the given message type, observe option, and payload. */
 	REST.notify_subscribers(r, acc_events, notification);
 }
+#endif //RES_ACC
 
+#if RES_LEDS
 /* Leds */
 uint8_t create_response_datapoint_led(char *buffer,
 		int asChild, int color) {
@@ -1071,41 +1125,7 @@ void led_blue_groupCommHandler(char* payload){
 	}
 }
 
-// creates an IPv6 address from the provided string
-// note: the provided string is manipulated.
-void get_ipv6_multicast_addr(char* input, uip_ip6addr_t* address){
-	// first draft, assume an IPv6 address with explicit notation like FF12:0000:0000:0000:0000:0000:0000:0001
 
-	// in this case the address shall be an char array with 32 (hex chars) + 7 (: delim) + 1 string delimiter
-	// replace all : with a whitespace
-	char* curChar;
-	char* pEnd;
-	int addr1, addr2,addr3, addr4, addr5, addr6, addr7, addr8;
-
-	// move to the beginning of the IPv6 address --> assume it starts with FF
-	input = strstr(input, "FF");
-
-	curChar = strchr(input, ':');
-
-	while (curChar != NULL)
-	{
-	   *curChar = ' '; // replace : with space
-	   curChar=strchr(curChar+1,':');
-	}
-
-
-	addr1 = strtol(input,&pEnd,16); // FF12 block
-	addr2 = strtol(pEnd, &pEnd,16); // 0000 block
-	addr3 = strtol(pEnd, &pEnd,16); // 0000 block
-	addr4 = strtol(pEnd, &pEnd,16); // 0000 block
-	addr5 = strtol(pEnd, &pEnd,16); // 0000 block
-	addr6 = strtol(pEnd, &pEnd,16); // 0000 block
-	addr7 = strtol(pEnd, &pEnd,16); // 0000 block
-	addr8 = strtol(pEnd, &pEnd,16); // 0000 block
-
-	// create ipv6 address with 16 bit words
-	uip_ip6addr(address,addr1, addr2, addr3, addr4, addr5, addr6, addr7, addr8); // 0001 block
-}
 
 /*
  * Blue led
@@ -1233,21 +1253,26 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	send_message(message, size_msg, request, response, buffer, preferred_size,
 			offset);
 }
+#endif // RES_LEDS
 
 PROCESS(iotsys_server, "IoTSyS");
 AUTOSTART_PROCESSES(&iotsys_server);
 
+#if RES_ACC
 /* Accelerometer acceleration detection callback */
 void accm_cb_acc(uint8_t reg) {
 	acc_register_acc = reg;
 	process_post(&iotsys_server, event_acc, NULL);
 }
+#endif // RES_ACC
 
+#if RES_BUTTON
 /* Accelerometer tap detection callback */
 void accm_cb_tap(uint8_t reg) {
 	acc_register_tap = reg;
 	process_post(&iotsys_server, event_tap, NULL);
 }
+#endif // RES_BUTTON
 
 PROCESS_THREAD(iotsys_server, ev, data) {
 	PROCESS_BEGIN()
@@ -1274,47 +1299,68 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		rest_activate_resource(&resource_temp);
 		rest_activate_periodic_resource(&periodic_resource_value);
 #endif
-
+#if RES_ACC
 		rest_activate_resource(&resource_acc);
 		rest_activate_event_resource(&resource_event_acc);
-
+#endif
+#if RES_BUTTON
 		rest_activate_resource(&resource_button);
 		rest_activate_event_resource(&resource_event_tap);
-
+#endif
+#if RES_LEDS
 		rest_activate_resource(&resource_leds);
 		rest_activate_resource(&resource_led_red);
 		rest_activate_resource(&resource_led_green);
 		rest_activate_resource(&resource_led_blue);
+#endif
 
 		/* Setup events. */
+#if RES_BUTTON
 		event_tap = process_alloc_event();
+#endif
+#if RES_ACC
 		event_acc = process_alloc_event();
-
+#endif
 		// activate temperature
+#if RES_TEMP
 		tmp102_init();
+#endif
 
 		/* Start and setup the accelerometer with default values, eg no interrupts enabled. */
+#if RES_ACC || RES_BUTTON
 		accm_init();
+#endif
 		/* Register the callback functions for each interrupt */
+#if RES_ACC
 		ACCM_REGISTER_INT1_CB(accm_cb_acc);
+#endif
+#if RES_BUTTON
 		ACCM_REGISTER_INT2_CB(accm_cb_tap);
+#endif
 		/* Set what strikes the corresponding interrupts. Several interrupts per pin is
 		 possible. For the eight possible interrupts, see adxl345.h and adxl345 datasheet. */
+#if RES_ACC
 		accm_set_irq(
 				ADXL345_INT_FREEFALL | ADXL345_INT_INACTIVITY
 						| ADXL345_INT_ACTIVITY, ADXL345_INT_TAP);
+#endif
 		//accm_set_irq(ADXL345_INT_FREEFALL,  ADXL345_INT_TAP);
 
 		/* Define application-specific events here. */
 		while (1) {
 			PROCESS_WAIT_EVENT();
+#if RES_BUTTON
 			if (ev == event_tap) {
 				printf("Tap event occured.\n");
 				event_tap_event_handler(&resource_event_tap);
-			} else if (ev == event_acc) {
+			}
+#endif
+#if RES_ACC
+			if (ev == event_acc) {
 				printf("Acc event occured.\n");
 				event_acc_event_handler(&resource_event_acc);
 			}
+#endif
 		} /* while (1) */
 
 	PROCESS_END();

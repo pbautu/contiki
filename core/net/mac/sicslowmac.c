@@ -99,7 +99,6 @@ send_packet(mac_callback_t sent, void *ptr)
   frame802154_t params;
   uint8_t len;
 
-  printf("send packet sicslowmac.\n");
   /* init to zeros */
   memset(&params, 0, sizeof(params));
 

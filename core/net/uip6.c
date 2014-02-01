@@ -654,6 +654,7 @@ uip_reass(void)
     /* Clear the bitmap. */
     memset(uip_reassbitmap, 0, sizeof(uip_reassbitmap));
   }
+
   /*
    * Check if the incoming fragment matches the one currently present
    * in the reasembly buffer. If so, we proceed with copying the fragment

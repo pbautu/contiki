@@ -59,7 +59,6 @@ struct nullmac_hdr {
 static int
 create(void)
 {
-	printf("frame-nullmac.c create\n");
   struct nullmac_hdr *hdr;
 
   if(packetbuf_hdralloc(sizeof(struct nullmac_hdr))) {

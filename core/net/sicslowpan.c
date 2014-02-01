@@ -72,7 +72,7 @@
 
 #include <stdio.h>
 
-#define DEBUG DEBUG_FULl
+#define DEBUG 0
 #include "net/uip-debug.h"
 #if DEBUG
 /* PRINTFI and PRINTFO are defined for input and output to debug one without changing the timing of the other */
@@ -1913,15 +1913,12 @@ input(void)
           PRINTF("Check sequence number\n");
 
           if(isSequenceNewAndStore(&SICSLOWPAN_IP_BUF->srcipaddr, (uint8_t) *(rime_ptr +1))){
-        	  printf("Sequence number is new -> retransmit.\n");
         	  //debug_ipv6_sequence_buffer();
         	  retransmission_wait_ms = abs(random_rand() % 10); // max 100 ms
-        	  printf("Waiting %d ms before retransmit.\n", retransmission_wait_ms);
         	  //send_packet(&rimeaddr_null);
         	  ctimer_set(&retransmit_timer, (CLOCK_SECOND / 100) * retransmission_wait_ms, retransmit_callback, NULL);
           }
           else{
-        	  printf("Packet is old.\n");
         	  return;
           }
 

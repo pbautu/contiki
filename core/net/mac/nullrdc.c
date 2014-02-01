@@ -112,7 +112,6 @@
 static int
 send_one_packet(mac_callback_t sent, void *ptr)
 {
-	printf("nullrdc send one packet.\n");
   int ret;
   int last_sent_ok = 0;
 
@@ -243,14 +242,12 @@ send_one_packet(mac_callback_t sent, void *ptr)
 static void
 send_packet(mac_callback_t sent, void *ptr)
 {
-	printf("send packet nullrdc\n");
   send_one_packet(sent, ptr);
 }
 /*---------------------------------------------------------------------------*/
 static void
 send_list(mac_callback_t sent, void *ptr, struct rdc_buf_list *buf_list)
 {
-  printf("nullrdc.c send list\n");
   while(buf_list != NULL) {
     /* We backup the next pointer, as it may be nullified by
      * mac_call_sent_callback() */
