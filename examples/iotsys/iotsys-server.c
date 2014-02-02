@@ -86,6 +86,8 @@
 #define BUTTON_BUFF_MAX     6     // true\0 false\0
 #define ACC_MSG_MAX_SIZE    140    // more than enough right now
 #define ACC_BUFF_MAX        11    // freefall\0 activity\0 inactivity\0
+
+#define PUT_BUFFER_SIZE 140
 /******************************************************************************/
 /* typedefs, enums  ***********************************************************/
 /******************************************************************************/
@@ -109,6 +111,8 @@ acceleration_t acc;
 uint8_t acc_register_acc;
 process_event_t event_acc;
 
+char put_buffer[PUT_BUFFER_SIZE];
+
 int led_red = 0;
 int led_blue = 0;
 int led_green = 0;
@@ -116,6 +120,17 @@ int led_green = 0;
 /******************************************************************************/
 /* helper functions ***********************************************************/
 /******************************************************************************/
+
+int get_bool_value_obix(char* obix_object){
+	PRINTF("Obix object is: %s\n", obix_object);
+	// value can either be true or false
+	if(strstr(obix_object, "true") != NULL){
+		PRINTF("obix value is true\n");
+		return 1;
+	}
+	PRINTF("obix value is false\n");
+	return 0;
+}
 
 void send_message(const char* message, const uint16_t size_msg, void *request,
 		void *response, uint8_t *buffer, uint16_t preferred_size,
@@ -909,6 +924,22 @@ void led_red_handler(void* request, void* response, uint8_t *buffer,
 
 	char *err_msg;
 
+	int payload_len = 0;
+	int newVal = 0;
+	const uint8_t *incoming;
+
+	if( REST.get_method_type(request) == METHOD_PUT){
+		payload_len = REST.get_request_payload(request, &incoming);
+		memcpy(put_buffer, incoming, payload_len);
+		newVal = get_bool_value_obix(put_buffer);
+		if(newVal){
+			leds_on(LEDS_RED);
+		}
+		else{
+			leds_off(LEDS_RED);
+		}
+	}
+
 	// Check the offset for boundaries of the resource data.
 	if (*offset >= CHUNKS_TOTAL) {
 		REST.set_response_status(response, REST.status.BAD_OPTION);
@@ -951,6 +982,22 @@ void led_green_handler(void* request, void* response, uint8_t *buffer,
 	uint8_t size_msg;
 
 	char *err_msg;
+	const uint8_t *incoming = NULL;
+
+	int payload_len = 0;
+	int newVal = 0;
+
+	if( REST.get_method_type(request) == METHOD_PUT){
+		payload_len = REST.get_request_payload(request, &incoming);
+		memcpy(put_buffer, incoming, payload_len);
+		newVal = get_bool_value_obix(put_buffer);
+		if(newVal){
+			leds_on(LEDS_GREEN);
+		}
+		else{
+			leds_off(LEDS_GREEN);
+		}
+	}
 
 	// Check the offset for boundaries of the resource data.
 	if (*offset >= CHUNKS_TOTAL) {
@@ -992,8 +1039,23 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
 	static char message[BUTTON_MSG_MAX_SIZE];
 	static uint8_t size_msg;
+	const uint8_t *incoming = NULL;
+	static size_t payload_len = 0;
+	int newVal = 0;
 
 	char *err_msg;
+
+	if( REST.get_method_type(request) == METHOD_PUT){
+		payload_len = REST.get_request_payload(request, &incoming);
+		memcpy(put_buffer, incoming, payload_len);
+		newVal = get_bool_value_obix(put_buffer);
+		if(newVal){
+			leds_on(LEDS_BLUE);
+		}
+		else{
+			leds_off(LEDS_BLUE);
+		}
+	}
 
 	// Check the offset for boundaries of the resource data.
 	if (*offset >= CHUNKS_TOTAL) {
@@ -1020,13 +1082,6 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 
 	send_message(message, size_msg, request, response, buffer, preferred_size,
 			offset);
-}
-
-RESOURCE(toggle, METHOD_POST, "actuators/toggle", "title=\"Red LED\";rt=\"Control\"");
-void
-toggle_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
-{
-  leds_toggle(LEDS_RED);
 }
 
 PROCESS(iotsys_server, "IoTSyS");
@@ -1078,7 +1133,6 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		rest_activate_resource(&resource_led_red);
 		rest_activate_resource(&resource_led_green);
 		rest_activate_resource(&resource_led_blue);
-		//rest_activate_resource(&resource_toggle);
 
 		/* Setup events. */
 		event_tap = process_alloc_event();
