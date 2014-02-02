@@ -66,7 +66,7 @@
 #warning "IoTSyS server without CoAP-specifc functionality"
 #endif /* CoAP-specific example */
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -203,28 +203,23 @@ int temp_to_default_buff() {
 	return temp_to_buff(tempstring);
 }
 
-uint8_t create_response_datapoint_temperature(int num, int accept, char *buffer,
-		int asChild) {
+uint8_t create_response_datapoint_temperature(char *buffer,	int asChild) {
 	size_t size_temp;
 	int size_msgp1, size_msgp2;
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
-	if (num && accept == REST.type.APPLICATION_XML) {
-		if (asChild) {
-			msgp1 =
-					"<real href=\"temp/value\" units=\"obix:units/celsius\" val=\"";
-			size_msgp1 = 56;
-		} else {
-			msgp1 = "<real href=\"value\" units=\"obix:units/celsius\" val=\"";
-			size_msgp1 = 51;
-		}
-		msgp2 = "\"/>\0";
-		size_msgp2 = 4;
+	if (asChild) {
+		msgp1 =
+				"<real href=\"temp/value\" units=\"obix:units/celsius\" val=\"";
+		size_msgp1 = 56;
 	} else {
-		PRINTF("Unsupported encoding!\n");
-		return 0;
+		msgp1 = "<real href=\"value\" units=\"obix:units/celsius\" val=\"";
+		size_msgp1 = 51;
 	}
+
+	msgp2 = "\"/>\0";
+	size_msgp2 = 4;
 
 	if ((size_temp = temp_to_default_buff()) < 0) {
 		PRINTF("Error preparing temperature string!\n");
@@ -240,26 +235,20 @@ uint8_t create_response_datapoint_temperature(int num, int accept, char *buffer,
 	return size_msg;
 }
 
-uint8_t create_response_object_temperature(int num, int accept, char *buffer) {
+uint8_t create_response_object_temperature(char *buffer) {
 	size_t size_datapoint;
 	int size_msgp1, size_msgp2;
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
-	if (num && accept == REST.type.APPLICATION_XML) {
-		msgp1 = "<obj href=\"temp\" is=\"iot:TemperatureSensor\">";
-		msgp2 = "</obj>\0";
-		size_msgp1 = 44;
-		size_msgp2 = 7;
-	} else {
-		PRINTF("Unsupported encoding!\n");
-		return 0;
-	}
+	msgp1 = "<obj href=\"temp\" is=\"iot:TemperatureSensor\">";
+	msgp2 = "</obj>\0";
+	size_msgp1 = 44;
+	size_msgp2 = 7;
 
 	memcpy(buffer, msgp1, size_msgp1);
 	// creates real data point and copies content to message buffer
-	size_datapoint = create_response_datapoint_temperature(num, accept,
-			buffer + size_msgp1, 1);
+	size_datapoint = create_response_datapoint_temperature(buffer + size_msgp1, 1);
 
 	memcpy(buffer + size_msgp1 + size_datapoint, msgp2, size_msgp2 + 1);
 
@@ -279,27 +268,21 @@ int button_to_default_buff() {
 	return button_to_buff(buttonstring);
 }
 
-uint8_t create_response_datapoint_button(int num, int accept, char *buffer,
-		int asChild) {
+uint8_t create_response_datapoint_button(char *buffer, int asChild) {
 	size_t size_button;
 	int size_msgp1, size_msgp2;
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
-	if (num && accept == REST.type.APPLICATION_XML) {
-		if (asChild) {
-			msgp1 = "<bool href=\"button/value\" val=\"";
-			size_msgp1 = 31;
-		} else {
-			msgp1 = "<bool href=\"value\" val=\"";
-			size_msgp1 = 24;
-		}
-		msgp2 = "\"/>\0";
-		size_msgp2 = 4;
+	if (asChild) {
+		msgp1 = "<bool href=\"button/value\" val=\"";
+		size_msgp1 = 31;
 	} else {
-		PRINTF("Unsupported encoding!\n");
-		return 0;
+		msgp1 = "<bool href=\"value\" val=\"";
+		size_msgp1 = 24;
 	}
+	msgp2 = "\"/>\0";
+	size_msgp2 = 4;
 
 	if ((size_button = button_to_default_buff()) < 0) {
 		PRINTF("Error preparing button string!\n");
@@ -315,26 +298,20 @@ uint8_t create_response_datapoint_button(int num, int accept, char *buffer,
 	return size_msg;
 }
 
-uint8_t create_response_object_button(int num, int accept, char *buffer) {
+uint8_t create_response_object_button(char *buffer) {
 	size_t size_datapoint;
 	int size_msgp1, size_msgp2;
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
-	if (num && accept == REST.type.APPLICATION_XML) {
-		msgp1 = "<obj href=\"button\" is=\"iot:PushButton\">";
-		msgp2 = "</obj>\0";
-		size_msgp1 = 39;
-		size_msgp2 = 7;
-	} else {
-		PRINTF("Unsupported encoding!\n");
-		return 0;
-	}
+	msgp1 = "<obj href=\"button\" is=\"iot:PushButton\">";
+	msgp2 = "</obj>\0";
+	size_msgp1 = 39;
+	size_msgp2 = 7;
 
 	memcpy(buffer, msgp1, size_msgp1);
 	// creates bool data point and copies content to message buffer
-	size_datapoint = create_response_datapoint_button(num, accept,
-			buffer + size_msgp1, 1);
+	size_datapoint = create_response_datapoint_button(buffer + size_msgp1, 1);
 
 	memcpy(buffer + size_msgp1 + size_datapoint, msgp2, size_msgp2 + 1);
 
@@ -356,27 +333,23 @@ int acc_to_default_buff() {
 	return acc_to_buff(accstring);
 }
 
-uint8_t create_response_datapoint_acc(int num, int accept, char *buffer,
-		int asChild) {
+uint8_t create_response_datapoint_acc(char *buffer, int asChild) {
 	size_t size_acc;
 	int size_msgp1, size_msgp2;
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
-	if (num && accept == REST.type.APPLICATION_XML) {
-		if (asChild) {
-			msgp1 = "<bool href=\"acc/active\" val=\"";
-			size_msgp1 = 29;
-		} else {
-			msgp1 = "<bool href=\"active\" val=\"";
-			size_msgp1 = 25;
-		}
-		msgp2 = "\"/>\0";
-		size_msgp2 = 4;
+
+	if (asChild) {
+		msgp1 = "<bool href=\"acc/active\" val=\"";
+		size_msgp1 = 29;
 	} else {
-		PRINTF("Unsupported encoding!\n");
-		return 0;
+		msgp1 = "<bool href=\"active\" val=\"";
+		size_msgp1 = 25;
 	}
+	msgp2 = "\"/>\0";
+	size_msgp2 = 4;
+
 
 	if ((size_acc = acc_to_default_buff()) < 0) {
 		PRINTF("Error preparing acc string!\n");
@@ -392,26 +365,20 @@ uint8_t create_response_datapoint_acc(int num, int accept, char *buffer,
 	return size_msg;
 }
 
-uint8_t create_response_object_acc(int num, int accept, char *buffer) {
+uint8_t create_response_object_acc(char *buffer) {
 	size_t size_datapoint;
 	int size_msgp1, size_msgp2;
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
-	if (num && accept == REST.type.APPLICATION_XML) {
-		msgp1 = "<obj href=\"acc\" is=\"iot:ActivitySensor\">";
-		msgp2 = "</obj>\0";
-		size_msgp1 = 40;
-		size_msgp2 = 7;
-	} else {
-		PRINTF("Unsupported encoding!\n");
-		return 0;
-	}
+	msgp1 = "<obj href=\"acc\" is=\"iot:ActivitySensor\">";
+	msgp2 = "</obj>\0";
+	size_msgp1 = 40;
+	size_msgp2 = 7;
 
 	memcpy(buffer, msgp1, size_msgp1);
 	// creates data point and copies content to message buffer
-	size_datapoint = create_response_datapoint_acc(num, accept,
-			buffer + size_msgp1, 1);
+	size_datapoint = create_response_datapoint_acc(buffer + size_msgp1, 1);
 
 	memcpy(buffer + size_msgp1 + size_datapoint, msgp2, size_msgp2 + 1);
 
@@ -453,8 +420,7 @@ void temp_handler(void* request, void* response, uint8_t *buffer,
 
 		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_object_temperature(num, accept[0],
-				message)) <= 0) {
+		if ((size_msg = create_response_object_temperature(message)) <= 0) {
 			PRINTF("ERROR while creating message!\n");
 			REST.set_response_status(response,
 					REST.status.INTERNAL_SERVER_ERROR);
@@ -480,11 +446,10 @@ void value_handler(void* request, void* response, uint8_t *buffer,
 	PRINTF(
 			"temp_value_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
 	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
-	static char message[TEMP_MSG_MAX_SIZE];
-	static uint8_t size_msg;
+    char message[TEMP_MSG_MAX_SIZE];
+	uint8_t size_msg;
 
 	const uint16_t *accept = NULL;
-	int num = 0;
 	char *err_msg;
 
 	/* Check the offset for boundaries of t        he resource data. */
@@ -496,28 +461,19 @@ void value_handler(void* request, void* response, uint8_t *buffer,
 		return;
 	}
 
-	/* compute message once */
-	if (*offset <= 0) {
-		/* decide upon content-format */
-		num = REST.get_header_accept(request, &accept);
+	REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
-
-		if ((size_msg = create_response_datapoint_temperature(num, accept[0],
-				message, 0)) <= 0) {
-			PRINTF("ERROR while creating message!\n");
-			REST.set_response_status(response,
-					REST.status.INTERNAL_SERVER_ERROR);
-			err_msg = "ERROR while creating message :\\";
-			REST.set_response_payload(response, err_msg, strlen(err_msg));
-			return;
-		}
+	if ((size_msg = create_response_datapoint_temperature(message, 0)) <= 0) {
+		PRINTF("ERROR while creating message!\n");
+		REST.set_response_status(response,
+				REST.status.INTERNAL_SERVER_ERROR);
+		err_msg = "ERROR while creating message :\\";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
 	}
 
 	send_message(message, size_msg, request, response, buffer, preferred_size,
 			offset);
-
-	/* A post_handler that handles subscriptions will be called for periodic resources by the REST framework. */
 }
 
 /*
@@ -537,8 +493,7 @@ void value_periodic_handler(resource_t *r) {
 	}
 
 	if (strncmp(new_value, tempstring, TEMP_BUFF_MAX) != 0) {
-		if ((size_msg = create_response_datapoint_temperature(1,
-				REST.type.APPLICATION_XML, buffer, 0)) <= 0) {
+		if ((size_msg = create_response_datapoint_temperature(buffer, 0)) <= 0) {
 			PRINTF("ERROR while creating message!\n");
 			return;
 		}
@@ -579,22 +534,19 @@ void button_handler(void* request, void* response, uint8_t *buffer,
 		return;
 	}
 
-	/* compute message once */
-	if (*offset <= 0) {
-		/* decide upon content-format */
-		num = REST.get_header_accept(request, &accept);
 
-		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_object_button(num, accept[0], message))
-				<= 0) {
-			PRINTF("ERROR while creating message!\n");
-			REST.set_response_status(response,
-					REST.status.INTERNAL_SERVER_ERROR);
-			err_msg = "ERROR while creating message :\\";
-			REST.set_response_payload(response, err_msg, strlen(err_msg));
-			return;
-		}
+
+	REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+	if ((size_msg = create_response_object_button(message))
+			<= 0) {
+		PRINTF("ERROR while creating message!\n");
+		REST.set_response_status(response,
+				REST.status.INTERNAL_SERVER_ERROR);
+		err_msg = "ERROR while creating message :\\";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
 	}
 
 	send_message(message, size_msg, request, response, buffer, preferred_size,
@@ -630,8 +582,7 @@ void event_tap_handler(void* request, void* response, uint8_t *buffer,
 	if (*offset <= 0) {
 		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_datapoint_button(1,
-				REST.type.APPLICATION_XML, message, 0)) <= 0) {
+		if ((size_msg = create_response_datapoint_button( message, 0)) <= 0) {
 			PRINTF("ERROR while creating message!\n");
 			REST.set_response_status(response,
 					REST.status.INTERNAL_SERVER_ERROR);
@@ -657,8 +608,7 @@ void event_tap_event_handler(resource_t *r) {
 	}
 	virtual_button = !virtual_button;
 
-	if ((size_msg = create_response_datapoint_button(1,
-			REST.type.APPLICATION_XML, buffer, 0)) <= 0) {
+	if ((size_msg = create_response_datapoint_button( buffer, 0)) <= 0) {
 		PRINTF("ERROR while creating message!\n");
 		return;
 	}
@@ -705,7 +655,7 @@ void acc_handler(void* request, void* response, uint8_t *buffer,
 
 		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_object_acc(num, accept[0], message))
+		if ((size_msg = create_response_object_acc(message))
 				<= 0) {
 			PRINTF("ERROR while creating message!\n");
 			REST.set_response_status(response,
@@ -745,20 +695,17 @@ void event_acc_handler(void* request, void* response, uint8_t *buffer,
 		return;
 	}
 
-	/* compute message once */
-	if (*offset <= 0) {
-		/* decide upon content-format */
-		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_datapoint_acc(1,
-				REST.type.APPLICATION_XML, message, 0)) <= 0) {
-			PRINTF("ERROR while creating message!\n");
-			REST.set_response_status(response,
-					REST.status.INTERNAL_SERVER_ERROR);
-			err_msg = "ERROR while creating message :\\";
-			REST.set_response_payload(response, err_msg, strlen(err_msg));
-			return;
-		}
+	/* decide upon content-format */
+	REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+	if ((size_msg = create_response_datapoint_acc(message, 0)) <= 0) {
+		PRINTF("ERROR while creating message!\n");
+		REST.set_response_status(response,
+				REST.status.INTERNAL_SERVER_ERROR);
+		err_msg = "ERROR while creating message :\\";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
 	}
 
 	send_message(message, size_msg, request, response, buffer, preferred_size,
@@ -782,8 +729,7 @@ void event_acc_event_handler(resource_t *r) {
 		return;
 	}
 
-	if ((size_msg = create_response_datapoint_acc(1, REST.type.APPLICATION_XML,
-			buffer, 0)) <= 0) {
+	if ((size_msg = create_response_datapoint_acc(buffer, 0)) <= 0) {
 		PRINTF("ERROR while creating message!\n");
 		return;
 	}
@@ -798,7 +744,7 @@ void event_acc_event_handler(resource_t *r) {
 }
 
 /* Leds */
-uint8_t create_response_datapoint_led(int num, int accept, char *buffer,
+uint8_t create_response_datapoint_led(char *buffer,
 		int asChild, int color) {
 	int size_msgp1, size_msgp2, size_msgp3, size_color;
 	const char *msgp1, *msgp2, *msgp3, *msgp_red, *msgp_blue, *msgp_green;
@@ -818,23 +764,21 @@ uint8_t create_response_datapoint_led(int num, int accept, char *buffer,
 
 	uint8_t size_msg;
 
-	if (num && accept == REST.type.APPLICATION_XML) {
-		if (asChild) {
-			msgp1 =	"<bool href=\"leds/";
-			size_msgp1 = 17;
+	PRINTF("Creating response datapoint led asChild: %d color: %d\n", asChild, color);
 
-		} else {
-			msgp1 = "<bool href=\"";
-			size_msgp1 = 12;
-		}
-		msgp2 = "\" val=\"";
-		size_msgp2 = 7;
-		msgp3 = "\"/>\0";
-		size_msgp3 = 4;
+
+	if (asChild) {
+		msgp1 =	"<bool href=\"leds/";
+		size_msgp1 = 17;
+
 	} else {
-		PRINTF("Unsupported encoding!\n");
-		return 0;
+		msgp1 = "<bool href=\"";
+		size_msgp1 = 12;
 	}
+	msgp2 = "\" val=\"";
+	size_msgp2 = 7;
+	msgp3 = "\"/>\0";
+	size_msgp3 = 4;
 
 	memcpy(buffer, msgp1, size_msgp1);
 
@@ -879,7 +823,7 @@ uint8_t create_response_datapoint_led(int num, int accept, char *buffer,
 	return size_msg;
 }
 
-uint8_t create_response_object_led(int num, int accept, char *buffer) {
+uint8_t create_response_object_led(char *buffer) {
 	int size_datapoint_red;
 	int size_datapoint_green;
 	int size_datapoint_blue;
@@ -887,23 +831,19 @@ uint8_t create_response_object_led(int num, int accept, char *buffer) {
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
-	if (num && accept == REST.type.APPLICATION_XML) {
-		msgp1 = "<obj href=\"leds\" is=\"iot:LedsActuator\">";
-		msgp2 = "</obj>\0";
-		size_msgp1 = 39;
-		size_msgp2 = 7;
-	} else {
-		PRINTF("Unsupported encoding!\n");
-		return 0;
-	}
+	PRINTF("Creating response object led called\n");
+
+	msgp1 = "<obj href=\"leds\" is=\"iot:LedsActuator\">";
+	msgp2 = "</obj>\0";
+	size_msgp1 = 39;
+	size_msgp2 = 7;
 
 	memcpy(buffer, msgp1, size_msgp1);
 	// creates bool data point and copies content to message buffer
-	size_datapoint_red = create_response_datapoint_led(num, accept,
-			buffer + size_msgp1, 0, 0);
-	size_datapoint_green = create_response_datapoint_led(num, accept, buffer + size_msgp1 + size_datapoint_red, 0,1);
+	size_datapoint_red = create_response_datapoint_led(buffer + size_msgp1, 0, 0);
+	size_datapoint_green = create_response_datapoint_led(buffer + size_msgp1 + size_datapoint_red, 0,1);
 
-	size_datapoint_blue = create_response_datapoint_led(num, accept, buffer + size_msgp1 + size_datapoint_red + size_datapoint_blue + size_datapoint_green, 0,2);
+	size_datapoint_blue = create_response_datapoint_led(buffer + size_msgp1 + size_datapoint_red + size_datapoint_blue + size_datapoint_green, 0,2);
 
 	memcpy(buffer + size_msgp1 + size_datapoint_red + size_datapoint_green + size_datapoint_blue, msgp2, size_msgp2);
 
@@ -923,7 +863,7 @@ leds_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_
 	char message[LED_MSG_MAX_SIZE];
 	uint8_t size_msg;
 
-	const uint16_t *accept = NULL;
+	//const uint16_t *accept = NULL;
 	int num = 0;
 	char *err_msg;
 
@@ -936,22 +876,17 @@ leds_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_
 		return;
 	}
 
-	/* compute message once */
-	if (*offset <= 0) {
-		/* decide upon content-format */
-		num = REST.get_header_accept(request, &accept);
+	// due to memory constraints --> compute message for all requests
+	REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
-
-		if ((size_msg = create_response_object_led(num, accept[0], message))
-				<= 0) {
-			PRINTF("ERROR while creating message!\n");
-			REST.set_response_status(response,
-					REST.status.INTERNAL_SERVER_ERROR);
-			err_msg = "ERROR while creating message :\\";
-			REST.set_response_payload(response, err_msg, strlen(err_msg));
-			return;
-		}
+	if ((size_msg = create_response_object_led(message))
+			<= 0) {
+		PRINTF("ERROR while creating message!\n");
+		REST.set_response_status(response,
+				REST.status.INTERNAL_SERVER_ERROR);
+		err_msg = "ERROR while creating message :\\";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
 	}
 
 	send_message(message, size_msg, request, response, buffer, preferred_size,
@@ -987,8 +922,7 @@ void led_red_handler(void* request, void* response, uint8_t *buffer,
 	if (*offset <= 0) {
 		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_datapoint_led(1,
-				REST.type.APPLICATION_XML, message, 0, 0)) <= 0) {
+		if ((size_msg = create_response_datapoint_led(message, 0, 0)) <= 0) {
 			PRINTF("ERROR while creating message!\n");
 			REST.set_response_status(response,
 					REST.status.INTERNAL_SERVER_ERROR);
@@ -1031,8 +965,7 @@ void led_green_handler(void* request, void* response, uint8_t *buffer,
 	if (*offset <= 0) {
 		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_datapoint_led(1,
-				REST.type.APPLICATION_XML, message, 0, 2)) <= 0) {
+		if ((size_msg = create_response_datapoint_led(message, 0, 2)) <= 0) {
 			PRINTF("ERROR while creating message!\n");
 			REST.set_response_status(response,
 					REST.status.INTERNAL_SERVER_ERROR);
@@ -1075,8 +1008,7 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	if (*offset <= 0) {
 		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
-		if ((size_msg = create_response_datapoint_led(1,
-				REST.type.APPLICATION_XML, message, 0, 1)) <= 0) {
+		if ((size_msg = create_response_datapoint_led(message, 0, 1)) <= 0) {
 			PRINTF("ERROR while creating message!\n");
 			REST.set_response_status(response,
 					REST.status.INTERNAL_SERVER_ERROR);
