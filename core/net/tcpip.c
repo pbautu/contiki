@@ -49,7 +49,7 @@
 
 #include <string.h>
 
-#define DEBUG DEBUG_NONE
+#define DEBUG 0
 #include "net/uip-debug.h"
 
 #if UIP_LOGGING
@@ -67,6 +67,7 @@ void uip_log(char *msg);
 #ifdef UIP_FALLBACK_INTERFACE
 extern struct uip_fallback_interface UIP_FALLBACK_INTERFACE;
 #endif
+
 
 #if UIP_CONF_IPV6_RPL
 #include "rpl/rpl.h"
@@ -316,7 +317,6 @@ udp_new(const uip_ipaddr_t *ripaddr, uint16_t port, void *appstate)
   struct uip_udp_conn *c;
   uip_udp_appstate_t *s;
 
-  printf("#### UDP_NEW CALLED.");
   c = uip_udp_new(ripaddr, port);
   if(c == NULL) {
     return NULL;

@@ -1327,9 +1327,6 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 	 	  }
 		PRINTF("Starting IoTSyS Server\n");
 
-		uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
-		  maddr = uip_ds6_maddr_add(&addr);
-
 #if GROUP_COMM_ENABLED
 		PRINTF("### Registering group comm handler.\n");
 		coap_rest_implementation.set_group_comm_callback(group_comm_handler);

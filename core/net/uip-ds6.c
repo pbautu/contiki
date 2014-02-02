@@ -306,6 +306,7 @@ uip_ds6_prefix_lookup(uip_ipaddr_t *ipaddr, uint8_t ipaddrlen)
 uint8_t
 uip_ds6_is_addr_onlink(uip_ipaddr_t *ipaddr)
 {
+	printf("Now in DS6 is addr on link\n");
   for(locprefix = uip_ds6_prefix_list;
       locprefix < uip_ds6_prefix_list + UIP_DS6_PREFIX_NB; locprefix++) {
     if(locprefix->isused &&
@@ -313,6 +314,7 @@ uip_ds6_is_addr_onlink(uip_ipaddr_t *ipaddr)
       return 1;
     }
   }
+  printf("Address in not on link.\n");
   return 0;
 }
 

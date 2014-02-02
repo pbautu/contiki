@@ -533,7 +533,6 @@ uip_udp_new(const uip_ipaddr_t *ripaddr, uint16_t rport)
 {
   register struct uip_udp_conn *conn;
   
-  printf("Now in IPv6 uip_udp_conn.\n");
   /* Find an unused local port. */
  again:
   ++lastport;

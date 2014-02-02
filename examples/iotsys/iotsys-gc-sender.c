@@ -78,7 +78,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
 {
   static struct etimer periodic_timer;
   static struct etimer send_timer;
-  uip_ipaddr_t addr;
+  static uip_ipaddr_t addr;
   uip_ds6_maddr_t *maddr;
   const char msg[] = "<bool val=\"true\"/>\0";
   const char msg2[] = "<bool val=\"false\"/>\0";
@@ -88,6 +88,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
 
   PROCESS_BEGIN();
   uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
+  PRINT6ADDR(&addr);
   maddr = uip_ds6_maddr_add(&addr);
   if(maddr == NULL){
 	  PRINTF("NULL returned.");
@@ -104,7 +105,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
     etimer_set(&send_timer, SEND_TIME);
     printf("### Send time is %d\n", (unsigned short) SEND_TIME);
     printf("Current process name is %s\n", PROCESS_CURRENT()->name);
-    uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
+    //uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
     //simple_udp_sendto(&broadcast_connection, "Test", 4, &addr);
     coap_init_connection(uip_htons(5683));
 
@@ -128,8 +129,10 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
 
 
 
-    coap_set_header_uri_path(&request, "coap://[FF12::1]/");
+    coap_set_header_uri_path(&request, "");
 
+    printf("Simple request.\n");
+    PRINT6ADDR(&addr);
     coap_simple_request(&addr, 5683, &request);
 
     printf("\n--Done--\n");
