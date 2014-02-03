@@ -273,14 +273,14 @@ void send_message(const char* message, const uint16_t size_msg, void *request,
 }
 
 #if GROUP_COMM_ENABLED
-//coap_packet_t request;
+coap_packet_t request;
 
 void send_coap_multicast(char* payload, size_t msgSize, uip_ip6addr_t* mc_address){
-/*	 coap_init_message(&request, COAP_TYPE_NON, COAP_PUT, 0 );
+	 coap_init_message(&request, COAP_TYPE_NON, COAP_PUT, 0 );
 	 coap_set_payload(&request, (uint8_t *)payload, msgSize);
 	 coap_set_header_uri_path(&request, "");
 	 coap_simple_request(mc_address, 5683, &request);
-	 printf("\n--Done--\n");*/
+	 printf("\n--Done--\n");
 }
 
 void send_group_update(char* payload, size_t msgSize, gc_handler handler ){
