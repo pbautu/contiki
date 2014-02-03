@@ -57,10 +57,7 @@
 #define REST_RES_RADIO 0
 #define REST_RES_MIRROR 0 /* causes largest code size */
 
-
-
 #include "erbium.h"
-
 
 #if defined (PLATFORM_HAS_BUTTON)
 #include "dev/button-sensor.h"

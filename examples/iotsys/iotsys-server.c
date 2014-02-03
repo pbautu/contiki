@@ -44,8 +44,8 @@
 #include "erbium.h"
 
 #define RES_TEMP 0
-#define RES_ACC 0
-#define RES_BUTTON 0
+#define RES_ACC 1
+#define RES_BUTTON 1
 #define RES_LEDS 1
 
 #define GROUP_COMM_ENABLED 1
@@ -76,11 +76,12 @@
 #include "er-coap-12.h"
 #elif WITH_COAP == 13
 #include "er-coap-13.h"
+#include "er-coap-13-engine.h"
 #else
 #warning "IoTSyS server example"
 #endif /* CoAP-specific example */
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -270,6 +271,89 @@ void send_message(const char* message, const uint16_t size_msg, void *request,
 	REST.set_header_etag(response, (uint8_t *) &length, 1);
 	REST.set_response_payload(response, buffer, length);
 }
+
+#if GROUP_COMM_ENABLED
+//coap_packet_t request;
+
+void send_coap_multicast(char* payload, size_t msgSize, uip_ip6addr_t* mc_address){
+/*	 coap_init_message(&request, COAP_TYPE_NON, COAP_PUT, 0 );
+	 coap_set_payload(&request, (uint8_t *)payload, msgSize);
+	 coap_set_header_uri_path(&request, "");
+	 coap_simple_request(mc_address, 5683, &request);
+	 printf("\n--Done--\n");*/
+}
+
+void send_group_update(char* payload, size_t msgSize, gc_handler handler ){
+	printf("sending group update\n");
+	int i,l=0;
+	uip_ip6addr_t gc_address;
+
+	for(i = 0; i < MAX_GC_GROUPS; i++){
+		// adding gc handler
+		for(l=0; l < MAX_GC_HANDLERS; l++){
+			if(gc_handlers[i].handlers[l] == handler ){
+				printf("Sending update to group identifier %d", gc_handlers[i].group_identifier);
+				uip_ip6addr(&gc_address, 0xff12, 0, 0, 0, 0, 0, 0, gc_handlers[i].group_identifier);
+				send_coap_multicast(payload, msgSize, &gc_address);
+			}
+		}
+
+	}
+}
+
+void extract_group_identifier(uip_ip6addr_t* ipv6Address, uint16_t* groupIdentifier ){
+	*groupIdentifier = 0;
+	*groupIdentifier =  ((uint8_t *)ipv6Address)[14];
+	*groupIdentifier <<= 8;
+	*groupIdentifier += ((uint8_t *)ipv6Address)[15];
+}
+
+void join_group(int groupIdentifier, gc_handler handler  ){
+	int i,l=0;
+	// use last 32 bits
+	for(i = 0; i < MAX_GC_GROUPS; i++){
+		if(gc_handlers[i].group_identifier == 0 || gc_handlers[i].group_identifier == groupIdentifier){ // free slot or same slot
+
+			gc_handlers[i].group_identifier = groupIdentifier;
+			//gc_handlers[i].group_identifier &= (groupAddress.u16[6] << 16);
+			PRINTF("Assigned slot: %d\n", gc_handlers[i].group_identifier);
+
+			// adding gc handler
+			for(l=0; l < MAX_GC_HANDLERS; l++){
+				if(gc_handlers[i].handlers[l] == NULL ||  gc_handlers[i].handlers[l] == &handler ){
+					gc_handlers[i].handlers[l] = handler;
+					PRINTF("(Re-)Assigned callback on slot %d\n", l);
+					break;
+				}
+			}
+			break;
+		}
+	}
+}
+
+void leave_group(int groupIdentifier, gc_handler handler){
+	int i,l=0;
+	for(i = 0; i < MAX_GC_GROUPS; i++){
+		if(gc_handlers[i].group_identifier == groupIdentifier){ // free slot or same slot
+
+			gc_handlers[i].group_identifier = groupIdentifier;
+			//gc_handlers[i].group_identifier &= (groupAddress.u16[6] << 16);
+			PRINTF("Found slot: %d\n", gc_handlers[i].group_identifier);
+
+			// adding gc handler
+			for(l=0; l < MAX_GC_HANDLERS; l++){
+
+				if(gc_handlers[i].handlers[l] == handler ){
+					gc_handlers[i].handlers[l] = NULL;
+					PRINTF("Removed callback from slot %d\n", l);
+					break;
+				}
+			}
+			break;
+		}
+	}
+}
+#endif // GROUP_COMM_ENABLED
 
 #if RES_TEMP
 int temp_to_buff(char* buffer) {
@@ -496,13 +580,8 @@ uint8_t create_response_datapoint_button(char *buffer, int asChild) {
 	const char *msgp1, *msgp2;
 	uint8_t size_msg;
 
-	if (asChild) {
-		msgp1 = "<bool href=\"button/value\" val=\"";
-		size_msgp1 = 31;
-	} else {
-		msgp1 = "<bool href=\"value\" val=\"";
-		size_msgp1 = 24;
-	}
+	msgp1 = "<bool val=\"";
+	size_msgp1 = 11;
 	msgp2 = "\"/>\0";
 	size_msgp2 = 4;
 
@@ -543,9 +622,18 @@ uint8_t create_response_object_button(char *buffer) {
 }
 
 /*
+ * Handles group communication updates for the button.
+ */
+void button_group_commhandler(char* payload){
+	// this is just a place holder function.
+	// the function pointer will be used by the acc driver for the button
+	// to find out the IPv6 address to which an update should be sent
+}
+
+/*
  * Example for an oBIX button sensor.
  */
-RESOURCE(button, METHOD_GET, "button", "title=\"Button Sensor\"");
+RESOURCE(button, METHOD_GET , "button", "title=\"Button Sensor\"");
 
 void button_handler(void* request, void* response, uint8_t *buffer,
 		uint16_t preferred_size, int32_t *offset) {
@@ -559,7 +647,8 @@ void button_handler(void* request, void* response, uint8_t *buffer,
 	int num = 0;
 	char *err_msg;
 
-	/* Check the offset for boundaries of t        he resource data. */
+
+	/* Check the offset for boundaries of the resource data. */
 	if (*offset >= CHUNKS_TOTAL) {
 		REST.set_response_status(response, REST.status.BAD_OPTION);
 		/* A block error message should not exceed the minimum block size (16). */
@@ -567,9 +656,6 @@ void button_handler(void* request, void* response, uint8_t *buffer,
 		REST.set_response_payload(response, err_msg, strlen(err_msg));
 		return;
 	}
-
-
-
 
 	REST.set_header_content_type(response, REST.type.APPLICATION_XML);
 
@@ -590,18 +676,54 @@ void button_handler(void* request, void* response, uint8_t *buffer,
 /*
  * Example for an event resource.
  */
-EVENT_RESOURCE(event_tap, METHOD_GET, "button/value",
+EVENT_RESOURCE(button_value, METHOD_GET , "button/value",
 		"title=\"VButton Value\";obs");
+SUB_RESOURCE(button_value_gc, METHOD_POST | METHOD_GET | HAS_SUB_RESOURCES, "button/value/groupComm", "", button_value);
 
-void event_tap_handler(void* request, void* response, uint8_t *buffer,
+void button_value_handler(void* request, void* response, uint8_t *buffer,
 		uint16_t preferred_size, int32_t *offset) {
-	PRINTF(
-			"event_tap_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
+	PRINTF("button_value_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
 	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
 	static char message[BUTTON_MSG_MAX_SIZE];
 	static uint8_t size_msg;
 
 	char *err_msg;
+
+#if GROUP_COMM_ENABLED
+	const uint8_t *incoming = NULL;
+	static size_t payload_len = 0;
+	int newVal = 0;
+	uip_ip6addr_t groupAddress;
+	gc_handler handler = &button_group_commhandler;
+
+	int16_t groupIdentifier = 0;
+
+	const char *uri_path = NULL;
+	int len = REST.get_url(request, &uri_path);
+
+	// for PUT and POST request we need to process the payload content
+	if( REST.get_method_type(request) == METHOD_POST){
+		payload_len = REST.get_request_payload(request, &incoming);
+		memcpy(payload_buffer, incoming, payload_len);
+	}
+
+	if(strstr(uri_path, "joinGroup") && REST.get_method_type(request) == METHOD_POST ){
+		printf("Join group called.\n");
+		get_ipv6_multicast_addr(payload_buffer, &groupAddress);
+		PRINT6ADDR(&groupAddress);
+		extract_group_identifier(&groupAddress, &groupIdentifier);
+		printf("\n group identifier: %d\n", groupIdentifier);
+		join_group(groupIdentifier, handler);
+	}
+	else if(strstr(uri_path, "leaveGroup") && REST.get_method_type(request) == METHOD_POST){
+		printf("Leave group called.\n");
+		get_ipv6_multicast_addr(payload_buffer, &groupAddress);
+		PRINT6ADDR(&groupAddress);
+		extract_group_identifier(&groupAddress, &groupIdentifier);
+		printf("\n group identifier: %d\n", groupIdentifier);
+		leave_group(groupIdentifier,  handler);
+	}
+#endif // GROUP_COMM_ENABLED
 
 	/* Check the offset for boundaries of t        he resource data. */
 	if (*offset >= CHUNKS_TOTAL) {
@@ -626,13 +748,14 @@ void event_tap_handler(void* request, void* response, uint8_t *buffer,
 		}
 	}
 
+
 	send_message(message, size_msg, request, response, buffer, preferred_size,
 			offset);
 }
 
 /* Additionally, a handler function named [resource name]_event_handler must be implemented for each PERIODIC_RESOURCE defined.
  * It will be called by the REST manager process with the defined period. */
-void event_tap_event_handler(resource_t *r) {
+void button_value_event_handler(resource_t *r) {
 	static char buffer[BUTTON_MSG_MAX_SIZE];
 	size_t size_msg;
 	static uint8_t button_presses = 0;
@@ -654,6 +777,12 @@ void event_tap_event_handler(resource_t *r) {
 
 	/* Notify the registered observers with the given message type, observe option, and payload. */
 	REST.notify_subscribers(r, button_presses, notification);
+
+#if GROUP_COMM_ENABLED
+	// check for registered group communication variables
+	send_group_update(buffer, size_msg, &button_group_commhandler);
+
+#endif
 }
 #endif //RES_BUTTON
 
@@ -1146,13 +1275,9 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	// Save the message as static variable, so it is retained through multiple calls (chunked resource)
 	static char message[BUTTON_MSG_MAX_SIZE];
 	static uint8_t size_msg;
+	int newVal = 0;
 	const uint8_t *incoming = NULL;
 	static size_t payload_len = 0;
-	int newVal = 0;
-	uip_ip6addr_t groupAddress;
-	int i = 0;
-	int l = 0;
-	int16_t groupIdentifier = 0;
 
 	const char *uri_path = NULL;
 	int len = REST.get_url(request, &uri_path);
@@ -1163,63 +1288,31 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 		memcpy(payload_buffer, incoming, payload_len);
 	}
 
+#if GROUP_COMM_ENABLED
+	uip_ip6addr_t groupAddress;
+	gc_handler leb_blue_handler = &led_blue_groupCommHandler;
+
+	int16_t groupIdentifier = 0;
+
     if(strstr(uri_path, "joinGroup") && REST.get_method_type(request) == METHOD_POST ){
     	PRINTF("Join group called.\n");
     	get_ipv6_multicast_addr(payload_buffer, &groupAddress);
     	PRINT6ADDR(&groupAddress);
-    	groupIdentifier =  ((uint8_t *)&groupAddress)[14];
-    	groupIdentifier <<= 8;
-    	groupIdentifier += ((uint8_t *)&groupAddress)[15];
+    	extract_group_identifier(&groupAddress, &groupIdentifier);
     	PRINTF("\n group identifier: %d\n", groupIdentifier);
+    	join_group(groupIdentifier, leb_blue_handler);
 
-    	// use last 32 bits
-    	for(i = 0; i < MAX_GC_GROUPS; i++){
-    		if(gc_handlers[i].group_identifier == 0 || gc_handlers[i].group_identifier == groupIdentifier){ // free slot or same slot
 
-    			gc_handlers[i].group_identifier = groupIdentifier;
-    			//gc_handlers[i].group_identifier &= (groupAddress.u16[6] << 16);
-    			PRINTF("Assigned slot: %d\n", gc_handlers[i].group_identifier);
-
-    			// adding gc handler
-    			for(l=0; l < MAX_GC_HANDLERS; l++){
-    				if(gc_handlers[i].handlers[l] == NULL ||  gc_handlers[i].handlers[l] == &led_blue_groupCommHandler ){
-    					gc_handlers[i].handlers[l] = &led_blue_groupCommHandler;
-    					PRINTF("(Re-)Assigned callback on slot %d\n", l);
-    					break;
-    				}
-    			}
-    			break;
-    		}
-    	}
     }
     else if(strstr(uri_path, "leaveGroup") && REST.get_method_type(request) == METHOD_POST){
     	PRINTF("Leave group called.\n");
     	get_ipv6_multicast_addr(payload_buffer, &groupAddress);
-        PRINT6ADDR(&groupAddress);
-        groupIdentifier =  ((uint8_t *)&groupAddress)[14];
-        groupIdentifier <<= 8;
-        groupIdentifier += ((uint8_t *)&groupAddress)[15];
-        PRINTF("\n group identifier: %d\n", groupIdentifier);
-    	for(i = 0; i < MAX_GC_GROUPS; i++){
-			if(gc_handlers[i].group_identifier == groupIdentifier){ // free slot or same slot
-
-				gc_handlers[i].group_identifier = groupIdentifier;
-				//gc_handlers[i].group_identifier &= (groupAddress.u16[6] << 16);
-				PRINTF("Found slot: %d\n", gc_handlers[i].group_identifier);
-
-				// adding gc handler
-				for(l=0; l < MAX_GC_HANDLERS; l++){
-					PRINTF("Handler val %d: - Led Blue Group Comm Handler: %d\n", (uint16_t) gc_handlers[i].handlers[l], (uint16_t) &led_blue_groupCommHandler);
-					if(gc_handlers[i].handlers[l] == &led_blue_groupCommHandler ){
-						gc_handlers[i].handlers[l] = NULL;
-						PRINTF("Removed callback from slot %d\n", l);
-						break;
-					}
-				}
-				break;
-			}
-    	}
+    	PRINT6ADDR(&groupAddress);
+    	extract_group_identifier(&groupAddress, &groupIdentifier);
+    	PRINTF("\n group identifier: %d\n", groupIdentifier);
+    	leave_group(groupIdentifier,  leb_blue_handler);
     }
+#endif
 
 	char *err_msg;
 
@@ -1329,6 +1422,7 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 
 #if GROUP_COMM_ENABLED
 		PRINTF("### Registering group comm handler.\n");
+		//coap_init_connection(uip_htons(5683));
 		coap_rest_implementation.set_group_comm_callback(group_comm_handler);
 		/*simple_udp_register(&broadcast_connection, UDP_PORT,
 		                      NULL, UDP_PORT,
@@ -1361,7 +1455,8 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 #endif
 #if RES_BUTTON
 		rest_activate_resource(&resource_button);
-		rest_activate_event_resource(&resource_event_tap);
+		rest_activate_event_resource(&resource_button_value);
+		rest_activate_resource(&resource_button_value_gc);
 #endif
 #if RES_LEDS
 		rest_activate_resource(&resource_leds);
@@ -1402,13 +1497,15 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 #endif
 		//accm_set_irq(ADXL345_INT_FREEFALL,  ADXL345_INT_TAP);
 
+
+
 		/* Define application-specific events here. */
 		while (1) {
 			PROCESS_WAIT_EVENT();
 #if RES_BUTTON
 			if (ev == event_tap) {
 				printf("Tap event occured.\n");
-				event_tap_event_handler(&resource_event_tap);
+				button_value_event_handler(&button_value_handler);
 			}
 #endif
 #if RES_ACC
