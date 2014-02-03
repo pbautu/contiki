@@ -43,9 +43,14 @@
 
 #include "erbium.h"
 
-/* Z1 temperature sensor */
-#include "dev/i2cmaster.h"
-#include "dev/tmp102.h"
+#define RES_TEMP 0
+
+
+#if RES_TEMP
+  /* Z1 temperature sensor */
+  #include "dev/i2cmaster.h"
+  #include "dev/tmp102.h"
+#endif // RES_TEMP
 
 /* Z1 accelorometer */
 #include "dev/adxl345.h"
@@ -114,7 +119,9 @@ typedef struct {
 /******************************************************************************/
 /* globals ********************************************************************/
 /******************************************************************************/
+#if RES_TEMP
 char tempstring[TEMP_BUFF_MAX];
+#endif
 
 char buttonstring[BUTTON_BUFF_MAX];
 uint8_t virtual_button;
@@ -207,6 +214,7 @@ void send_message(const char* message, const uint16_t size_msg, void *request,
 	REST.set_response_payload(response, buffer, length);
 }
 
+#if RES_TEMP
 int temp_to_buff(char* buffer) {
 	int16_t tempint;
 	uint16_t tempfrac;
@@ -288,6 +296,130 @@ uint8_t create_response_object_temperature(char *buffer) {
 
 	return size_msg;
 }
+
+/*
+ * Example for an oBIX temperature sensor.
+ */
+RESOURCE(temp, METHOD_GET, "temp", "title=\"Temperature Sensor\"");
+
+void temp_handler(void* request, void* response, uint8_t *buffer,
+		uint16_t preferred_size, int32_t *offset) {
+	PRINTF(
+			"temp_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
+	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
+	static char message[TEMP_MSG_MAX_SIZE];
+	static uint8_t size_msg;
+
+	const uint16_t *accept = NULL;
+	int num = 0;
+	char *err_msg;
+
+	/* Check the offset for boundaries of t        he resource data. */
+	if (*offset >= CHUNKS_TOTAL) {
+		REST.set_response_status(response, REST.status.BAD_OPTION);
+		/* A block error message should not exceed the minimum block size (16). */
+		err_msg = "BlockOutOfScope";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	/* compute message once */
+	if (*offset <= 0) {
+		/* decide upon content-format */
+		num = REST.get_header_accept(request, &accept);
+
+		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+		if ((size_msg = create_response_object_temperature(message)) <= 0) {
+			PRINTF("ERROR while creating message!\n");
+			REST.set_response_status(response,
+					REST.status.INTERNAL_SERVER_ERROR);
+			err_msg = "ERROR while creating message :\\";
+			REST.set_response_payload(response, err_msg, strlen(err_msg));
+			return;
+		}
+	}
+
+	send_message(message, size_msg, request, response, buffer, preferred_size,
+			offset);
+}
+
+/*
+ * Example for an oBIX temperature sensor.
+ */
+PERIODIC_RESOURCE(value, METHOD_GET, "temp/value",
+		"title=\"Temperature Value;obs\"", 5*CLOCK_SECOND);
+
+void value_handler(void* request, void* response, uint8_t *buffer,
+		uint16_t preferred_size, int32_t *offset) {
+
+	PRINTF(
+			"temp_value_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
+	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
+    char message[TEMP_MSG_MAX_SIZE];
+	uint8_t size_msg;
+
+	const uint16_t *accept = NULL;
+	char *err_msg;
+
+	/* Check the offset for boundaries of t        he resource data. */
+	if (*offset >= CHUNKS_TOTAL) {
+		REST.set_response_status(response, REST.status.BAD_OPTION);
+		/* A block error message should not exceed the minimum block size (16). */
+		err_msg = "BlockOutOfScope";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	REST.set_header_content_type(response, REST.type.APPLICATION_XML);
+
+	if ((size_msg = create_response_datapoint_temperature(message, 0)) <= 0) {
+		PRINTF("ERROR while creating message!\n");
+		REST.set_response_status(response,
+				REST.status.INTERNAL_SERVER_ERROR);
+		err_msg = "ERROR while creating message :\\";
+		REST.set_response_payload(response, err_msg, strlen(err_msg));
+		return;
+	}
+
+	send_message(message, size_msg, request, response, buffer, preferred_size,
+			offset);
+}
+
+/*
+ * Additionally, a handler function named [resource name]_handler must be implemented for each PERIODIC_RESOURCE.
+ * It will be called by the REST manager process with the defined period.
+ */
+void value_periodic_handler(resource_t *r) {
+
+	static char new_value[TEMP_BUFF_MAX];
+	static char buffer[TEMP_MSG_MAX_SIZE];
+	static uint8_t obs_counter = 0;
+	size_t size_msg;
+
+	if (temp_to_buff(new_value) <= 0) {
+		PRINTF("ERROR while creating message!\n");
+		return;
+	}
+
+	if (strncmp(new_value, tempstring, TEMP_BUFF_MAX) != 0) {
+		if ((size_msg = create_response_datapoint_temperature(buffer, 0)) <= 0) {
+			PRINTF("ERROR while creating message!\n");
+			return;
+		}
+
+		/* Build notification. */
+		coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
+		coap_init_message(notification, COAP_TYPE_NON, CONTENT_2_05, 0);
+		coap_set_payload(notification, buffer, size_msg);
+
+		/* Notify the registered observers with the given message type, observe option, and payload. */
+		REST.notify_subscribers(r, obs_counter, notification);
+	}
+}
+
+
+#endif // ENABLE TEMP
 
 int button_to_buff(char* buffer) {
 	if (virtual_button) {
@@ -419,126 +551,7 @@ uint8_t create_response_object_acc(char *buffer) {
 	return size_msg;
 }
 
-/*
- * Example for an oBIX temperature sensor.
- */
-RESOURCE(temp, METHOD_GET, "temp", "title=\"Temperature Sensor\"");
 
-void temp_handler(void* request, void* response, uint8_t *buffer,
-		uint16_t preferred_size, int32_t *offset) {
-	PRINTF(
-			"temp_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
-	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
-	static char message[TEMP_MSG_MAX_SIZE];
-	static uint8_t size_msg;
-
-	const uint16_t *accept = NULL;
-	int num = 0;
-	char *err_msg;
-
-	/* Check the offset for boundaries of t        he resource data. */
-	if (*offset >= CHUNKS_TOTAL) {
-		REST.set_response_status(response, REST.status.BAD_OPTION);
-		/* A block error message should not exceed the minimum block size (16). */
-		err_msg = "BlockOutOfScope";
-		REST.set_response_payload(response, err_msg, strlen(err_msg));
-		return;
-	}
-
-	/* compute message once */
-	if (*offset <= 0) {
-		/* decide upon content-format */
-		num = REST.get_header_accept(request, &accept);
-
-		REST.set_header_content_type(response, REST.type.APPLICATION_XML);
-
-		if ((size_msg = create_response_object_temperature(message)) <= 0) {
-			PRINTF("ERROR while creating message!\n");
-			REST.set_response_status(response,
-					REST.status.INTERNAL_SERVER_ERROR);
-			err_msg = "ERROR while creating message :\\";
-			REST.set_response_payload(response, err_msg, strlen(err_msg));
-			return;
-		}
-	}
-
-	send_message(message, size_msg, request, response, buffer, preferred_size,
-			offset);
-}
-
-/*
- * Example for an oBIX temperature sensor.
- */
-PERIODIC_RESOURCE(value, METHOD_GET, "temp/value",
-		"title=\"Temperature Value;obs\"", 5*CLOCK_SECOND);
-
-void value_handler(void* request, void* response, uint8_t *buffer,
-		uint16_t preferred_size, int32_t *offset) {
-
-	PRINTF(
-			"temp_value_handler called - preferred size: %u, offset:%ld,\n", preferred_size, *offset);
-	/* Save the message as static variable, so it is retained through multiple calls (chunked resource) */
-    char message[TEMP_MSG_MAX_SIZE];
-	uint8_t size_msg;
-
-	const uint16_t *accept = NULL;
-	char *err_msg;
-
-	/* Check the offset for boundaries of t        he resource data. */
-	if (*offset >= CHUNKS_TOTAL) {
-		REST.set_response_status(response, REST.status.BAD_OPTION);
-		/* A block error message should not exceed the minimum block size (16). */
-		err_msg = "BlockOutOfScope";
-		REST.set_response_payload(response, err_msg, strlen(err_msg));
-		return;
-	}
-
-	REST.set_header_content_type(response, REST.type.APPLICATION_XML);
-
-	if ((size_msg = create_response_datapoint_temperature(message, 0)) <= 0) {
-		PRINTF("ERROR while creating message!\n");
-		REST.set_response_status(response,
-				REST.status.INTERNAL_SERVER_ERROR);
-		err_msg = "ERROR while creating message :\\";
-		REST.set_response_payload(response, err_msg, strlen(err_msg));
-		return;
-	}
-
-	send_message(message, size_msg, request, response, buffer, preferred_size,
-			offset);
-}
-
-/*
- * Additionally, a handler function named [resource name]_handler must be implemented for each PERIODIC_RESOURCE.
- * It will be called by the REST manager process with the defined period.
- */
-void value_periodic_handler(resource_t *r) {
-
-	static char new_value[TEMP_BUFF_MAX];
-	static char buffer[TEMP_MSG_MAX_SIZE];
-	static uint8_t obs_counter = 0;
-	size_t size_msg;
-
-	if (temp_to_buff(new_value) <= 0) {
-		PRINTF("ERROR while creating message!\n");
-		return;
-	}
-
-	if (strncmp(new_value, tempstring, TEMP_BUFF_MAX) != 0) {
-		if ((size_msg = create_response_datapoint_temperature(buffer, 0)) <= 0) {
-			PRINTF("ERROR while creating message!\n");
-			return;
-		}
-
-		/* Build notification. */
-		coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
-		coap_init_message(notification, COAP_TYPE_NON, CONTENT_2_05, 0);
-		coap_set_payload(notification, buffer, size_msg);
-
-		/* Notify the registered observers with the given message type, observe option, and payload. */
-		REST.notify_subscribers(r, obs_counter, notification);
-	}
-}
 
 /*
  * Example for an oBIX button sensor.
@@ -1112,7 +1125,8 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	int newVal = 0;
 	uip_ip6addr_t groupAddress;
 	int i = 0;
-	uint8_t groupIdentifer = 0;
+	int l = 0;
+	int16_t groupIdentifier = 0;
 
 
 	const char *uri_path = NULL;
@@ -1128,15 +1142,30 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
     	PRINTF("Join group called.\n");
     	get_ipv6_multicast_addr(payload_buffer, &groupAddress);
     	PRINT6ADDR(&groupAddress);
-    	groupIdentifer =  ((uint8_t *)&groupAddress)[15];
-    	PRINTF("\n group identifier: %d\n", groupIdentifer);
+
+    	groupIdentifier =  ((uint8_t *)&groupAddress)[14];
+    	PRINTF("\n group identifier: %d\n", groupIdentifier);
+    	groupIdentifier <<= 8;
+    	PRINTF("\n group identifier: %d\n", groupIdentifier);
+    	groupIdentifier += ((uint8_t *)&groupAddress)[15];
+    	PRINTF("\n group identifier: %d\n", groupIdentifier);
+
     	// use last 32 bits
     	for(i = 0; i < MAX_GC_GROUPS; i++){
-    		if(gc_handlers[i].group_identifier == 0){ // free slot
+    		if(gc_handlers[i].group_identifier == 0 || gc_handlers[i].group_identifier == groupIdentifier){ // free slot or same slot
 
-    			gc_handlers[i].group_identifier = groupIdentifer;
+    			gc_handlers[i].group_identifier = groupIdentifier;
     			//gc_handlers[i].group_identifier &= (groupAddress.u16[6] << 16);
     			PRINTF("Assigned slot: %d\n", gc_handlers[i].group_identifier);
+
+    			// adding gc handler
+    			for(l=0; l < MAX_GC_HANDLERS; l++){
+    				if(gc_handlers[i].handlers[l] == NULL ||  gc_handlers[i].handlers[l] == &led_blue_groupCommHandler ){
+    					gc_handlers[i].handlers[l] = &led_blue_groupCommHandler;
+    					PRINTF("(Re-)Assigned callback.");
+    					break;
+    				}
+    			}
     			break;
     		}
     	}
@@ -1220,8 +1249,10 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		rest_init_engine();
 
 		/* Activate the application-specific resources. */
+#if RES_TEMP
 		rest_activate_resource(&resource_temp);
 		rest_activate_periodic_resource(&periodic_resource_value);
+#endif
 
 		rest_activate_resource(&resource_acc);
 		rest_activate_event_resource(&resource_event_acc);
