@@ -48,6 +48,8 @@
 #define RES_BUTTON 0
 #define RES_LEDS 1
 
+#define GROUP_COMM_ENABLED 1
+#define UDP_PORT 5683
 
 #if RES_TEMP
   /* Z1 temperature sensor */
@@ -126,6 +128,10 @@ typedef struct {
 /******************************************************************************/
 /* globals ********************************************************************/
 /******************************************************************************/
+#if GROUP_COMM_ENABLED
+	static struct simple_udp_connection broadcast_connection;
+#endif
+
 #if RES_TEMP
 char tempstring[TEMP_BUFF_MAX];
 #endif
@@ -1255,6 +1261,21 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 }
 #endif // RES_LEDS
 
+static void
+receiver(struct simple_udp_connection *c,
+         const uip_ipaddr_t *sender_addr,
+         uint16_t sender_port,
+         const uip_ipaddr_t *receiver_addr,
+         uint16_t receiver_port,
+         const uint8_t *data,
+         uint16_t datalen)
+{
+  PRINT6ADDR(sender_addr);
+  PRINT6ADDR(receiver_addr);
+  printf("\nData received on port %d from port %d with length %d\n",
+         receiver_port, sender_port, datalen);
+}
+
 PROCESS(iotsys_server, "IoTSyS");
 AUTOSTART_PROCESSES(&iotsys_server);
 
@@ -1279,6 +1300,12 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 		;
 
 		PRINTF("Starting IoTSyS Server\n");
+
+#if GROUP_COMM_ENABLED
+		simple_udp_register(&broadcast_connection, UDP_PORT,
+		                      NULL, UDP_PORT,
+		                      receiver);
+#endif
 
 #ifdef RF_CHANNEL
 		PRINTF("RF channel: %u\n", RF_CHANNEL);
