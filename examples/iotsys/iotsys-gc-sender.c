@@ -38,14 +38,14 @@
 #include "net/uip-ds6.h"
 
 #include "simple-udp.h"
-
+#include "er-coap-13-engine.h"
 
 #include <stdio.h>
 #include <string.h>
 
 #define UDP_PORT 5683
 
-#define SEND_INTERVAL		(5 * CLOCK_SECOND)
+#define SEND_INTERVAL		(10 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
 
 #define DEBUG 1
@@ -61,24 +61,18 @@
 
 static struct simple_udp_connection broadcast_connection;
 
+void
+client_chunk_handler(void *response)
+{
+
+}
+
+
 /*---------------------------------------------------------------------------*/
 PROCESS(broadcast_example_process, "IoTSyS group communication example");
 AUTOSTART_PROCESSES(&broadcast_example_process);
 /*---------------------------------------------------------------------------*/
-static void
-receiver(struct simple_udp_connection *c,
-         const uip_ipaddr_t *sender_addr,
-         uint16_t sender_port,
-         const uip_ipaddr_t *receiver_addr,
-         uint16_t receiver_port,
-         const uint8_t *data,
-         uint16_t datalen)
-{
-  PRINT6ADDR(sender_addr);
-  PRINT6ADDR(receiver_addr);
-  printf("\nData received on port %d from port %d with length %d\n",
-         receiver_port, sender_port, datalen);
-}
+
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(broadcast_example_process, ev, data)
 {
@@ -87,21 +81,18 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
   uip_ipaddr_t addr;
   uip_ds6_maddr_t *maddr;
 
+  static coap_packet_t request[1]; /* This way the packet can be treated as pointer as usual. */
+
   PROCESS_BEGIN();
-  uip_ip6addr(&addr, 0xff02, 0, 0, 0, 0, 0, 0, 0x11);
+  uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
   maddr = uip_ds6_maddr_add(&addr);
   if(maddr == NULL){
 	  PRINTF("NULL returned.");
   }
   else{
-	  PRINTF("Something returned.");
 	  PRINTF("Is used: %d", maddr->isused);
 	  PRINT6ADDR(&(maddr->ipaddr));
   }
-
-  simple_udp_register(&broadcast_connection, UDP_PORT,
-                      NULL, UDP_PORT,
-                      receiver);
 
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
@@ -112,9 +103,18 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
     printf("Current process name is %s\n", PROCESS_CURRENT()->name);
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
-    printf("Sending broadcast\n");
-    uip_ip6addr(&addr, 0xff02, 0, 0, 0, 0, 0, 0, 0x11);
-    simple_udp_sendto(&broadcast_connection, "Test", 4, &addr);
+    printf("Sending coap message.\n");
+    uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
+    //simple_udp_sendto(&broadcast_connection, "Test", 4, &addr);
+
+    const char msg[] = "<bool val=\"true\"/>\0";
+    coap_set_payload(request, (uint8_t *)msg, sizeof(msg)-1);
+    coap_init_message(request, COAP_TYPE_NON, COAP_PUT, 0 );
+    coap_set_header_uri_path(request, "coap://[FF12::1]/");
+
+    coap_simple_request(&addr, 5683, request);
+
+    printf("\n--Done--\n");
   }
 
   PROCESS_END();

@@ -591,6 +591,14 @@ PT_THREAD(coap_blocking_request(struct request_state_t *state, process_event_t e
 
   PT_END(&state->pt);
 }
+
+void coap_simple_request(uip_ipaddr_t *addr, uint16_t port, coap_packet_t *request){
+	uint8_t packet[COAP_MAX_PACKET_SIZE+1];
+	uint16_t packet_len;
+	packet_len = coap_serialize_message(request, &packet );
+	coap_send_message(addr, port, &packet, packet_len);
+
+}
 /*----------------------------------------------------------------------------*/
 /*- Engine Interface ---------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/

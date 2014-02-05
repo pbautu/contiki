@@ -91,4 +91,6 @@ PT_THREAD(coap_blocking_request(struct request_state_t *state, process_event_t e
 }
 /*-----------------------------------------------------------------------------------*/
 
+void coap_simple_request(uip_ipaddr_t *addr, uint16_t port, coap_packet_t *request);
+
 #endif /* COAP_SERVER_H_ */

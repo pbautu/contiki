@@ -55,7 +55,7 @@
   #include "dev/tmp102.h"
 #endif // RES_TEMP
 
-#if RES_ACC
+#if RES_ACC || RES_BUTTON
 /* Z1 accelorometer */
 #include "dev/adxl345.h"
 #endif // RES_ACC
@@ -75,7 +75,7 @@
 #elif WITH_COAP == 13
 #include "er-coap-13.h"
 #else
-#warning "IoTSyS server without CoAP-specifc functionality"
+#warning "IoTSyS server example"
 #endif /* CoAP-specific example */
 
 #define DEBUG 0
@@ -539,7 +539,7 @@ uint8_t create_response_object_button(char *buffer) {
 /*
  * Example for an oBIX button sensor.
  */
-RESOURCE(button, METHOD_GET, "button", "title=\"VButton Sensor\"");
+RESOURCE(button, METHOD_GET, "button", "title=\"Button Sensor\"");
 
 void button_handler(void* request, void* response, uint8_t *buffer,
 		uint16_t preferred_size, int32_t *offset) {
@@ -951,7 +951,7 @@ uint8_t create_response_object_led(char *buffer) {
 	return size_msg;
 }
 
-RESOURCE(leds, METHOD_GET | METHOD_PUT , "leds", "title=\"Leds Actuator\";rt=\"iot:actuator\"");
+RESOURCE(leds, METHOD_GET | METHOD_PUT , "leds", "title=\"Leds Actuator\"");
 
 void
 leds_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
@@ -996,7 +996,7 @@ leds_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_
  * Red led
  */
 RESOURCE(led_red, METHOD_PUT | METHOD_GET, "leds/red",
-		"title=\"Red led\";rt=\"obix:Bool\"");
+		"title=\"Red led\"");
 
 void led_red_handler(void* request, void* response, uint8_t *buffer,
 		uint16_t preferred_size, int32_t *offset) {
@@ -1055,7 +1055,7 @@ void led_red_handler(void* request, void* response, uint8_t *buffer,
  * Green led
  */
 RESOURCE(led_green, METHOD_PUT | METHOD_GET, "leds/green",
-		"title=\"Green led\";rt=\"obix:Bool\"");
+		"title=\"Green led\"");
 
 void led_green_handler(void* request, void* response, uint8_t *buffer,
 		uint16_t preferred_size, int32_t *offset) {
@@ -1131,7 +1131,7 @@ void led_blue_groupCommHandler(char* payload){
  * Blue led
  */
 RESOURCE(led_blue, METHOD_PUT | METHOD_GET | HAS_SUB_RESOURCES | METHOD_POST, "leds/blue",
-		"title=\"Blue led\";rt=\"obix:Bool\"");
+		"title=\"Blue led\"");
 
 void led_blue_handler(void* request, void* response, uint8_t *buffer,
 		uint16_t preferred_size, int32_t *offset) {

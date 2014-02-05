@@ -88,7 +88,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
   uip_ds6_maddr_t *maddr;
 
   PROCESS_BEGIN();
-  uip_ip6addr(&addr, 0xff02, 0, 0, 0, 0, 0, 0, 0x11);
+  uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x11);
   maddr = uip_ds6_maddr_add(&addr);
   if(maddr == NULL){
 	  PRINTF("NULL returned.");
