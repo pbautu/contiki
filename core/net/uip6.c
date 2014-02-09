@@ -83,7 +83,7 @@
 /* For Debug, logging, statistics                                            */
 /*---------------------------------------------------------------------------*/
 
-#define DEBUG DEBUG_FULL
+#define DEBUG 0
 #include "net/uip-debug.h"
 
 #if UIP_CONF_IPV6_RPL
@@ -1541,6 +1541,7 @@ uip_process(uint8_t flag)
   PRINTF("In udp_send\n");
 
   if(uip_slen == 0) {
+	PRINTF("Goto drop\n");
     goto drop;
   }
   uip_len = uip_slen + UIP_IPUDPH_LEN;

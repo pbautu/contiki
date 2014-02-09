@@ -102,6 +102,7 @@ coap_receive(void)
     	if(group_comm_cbk != NULL){
     		group_comm_cbk(&UIP_IP_BUF->srcipaddr, &UIP_IP_BUF->destipaddr, message->payload, message->payload_len);
     	}
+    	PRINTF("#### RETURNING.\n");
     	return NO_ERROR;
     }
 

@@ -72,7 +72,7 @@
 
 #include <stdio.h>
 
-#define DEBUG 0
+#define DEBUG 1
 #include "net/uip-debug.h"
 #if DEBUG
 /* PRINTFI and PRINTFO are defined for input and output to debug one without changing the timing of the other */
@@ -1589,8 +1589,10 @@ output(const uip_lladdr_t *localdest)
 #else /* USE_FRAMER_HDRLEN */
   framer_hdrlen = 21;
 #endif /* USE_FRAMER_HDRLEN */
-
-  if((int)uip_len - (int)uncomp_hdr_len > (int)MAC_MAX_PAYLOAD - framer_hdrlen - (int)rime_hdr_len) {
+  printf("uip_len: %d, uncomp_hdr_len: %d,  .\n", uip_len);
+ // if((int)uip_len - (int)uncomp_hdr_len > (int)MAC_MAX_PAYLOAD - framer_hdrlen - (int)rime_hdr_len) {
+  // framer_hdrlen --> should be already considered in MAC_MAX_PAYLOAD
+  if((int)uip_len - (int)uncomp_hdr_len > (int)MAC_MAX_PAYLOAD - (int)rime_hdr_len) {
 #if SICSLOWPAN_CONF_FRAG
     struct queuebuf *q;
     /*
