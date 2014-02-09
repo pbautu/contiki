@@ -557,13 +557,12 @@ uip_udp_new(const uip_ipaddr_t *ripaddr, uint16_t rport)
   }
 
   if(conn == 0) {
-	  printf("###### No free conn found.");
+
     return 0;
   }
 
   conn->lport = UIP_HTONS(lastport);
   conn->rport = rport;
-  printf("###### Assigning lport %d and rport %d to conn.\n", conn->lport, conn->rport);
   if(ripaddr == NULL) {
     memset(&conn->ripaddr, 0, sizeof(uip_ipaddr_t));
   } else {
@@ -1463,8 +1462,6 @@ uip_process(uint8_t flag)
  udp_input:
 
   remove_ext_hdr();
-
-  printf("############Receiving UDP packet\n");
  
   /* UDP processing is really just a hack. We don't do anything to the
      UDP/IP headers, but let the UDP application do all the hard
@@ -1496,8 +1493,7 @@ uip_process(uint8_t flag)
   }
 
   /* Demultiplex this UDP packet between the UDP "connections". */
-  printf("### De-multiplexing: srcport %d, dstport: %d\n",UIP_UDP_BUF->srcport,UIP_UDP_BUF->destport );
-  for(uip_udp_conn = &uip_udp_conns[0];
+   for(uip_udp_conn = &uip_udp_conns[0];
       uip_udp_conn < &uip_udp_conns[UIP_UDP_CONNS];
       ++uip_udp_conn) {
     /* If the local UDP port is non-zero, the connection is considered
@@ -1507,7 +1503,6 @@ uip_process(uint8_t flag)
        connection is bound to a remote port. Finally, if the
        connection is bound to a remote IP address, the source IP
        address of the packet is checked. */
-	printf("### lport %d, rport %d\n", uip_udp_conn->lport, uip_udp_conn->rport);
     if(uip_udp_conn->lport != 0 &&
        UIP_UDP_BUF->destport == uip_udp_conn->lport &&
        (uip_udp_conn->rport == 0 ||

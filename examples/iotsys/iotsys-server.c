@@ -80,7 +80,7 @@
 #warning "IoTSyS server example"
 #endif /* CoAP-specific example */
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -1263,15 +1263,31 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 
 #if GROUP_COMM_ENABLED
 static void
-receiver(const uip_ipaddr_t *sender_addr,
+group_comm_handler(const uip_ipaddr_t *sender_addr,
          const uip_ipaddr_t *receiver_addr,
          const uint8_t *data,
          uint16_t datalen)
 {
-  PRINT6ADDR(sender_addr);
-  PRINT6ADDR(receiver_addr);
-  printf("\n######### Data received on group comm handler with length %d\n",
-		 datalen);
+	uint16_t groupIdentifier;
+	PRINT6ADDR(sender_addr);
+	PRINT6ADDR(receiver_addr);
+	uint8_t i,l=0;
+
+	groupIdentifier =  ((uint8_t *)receiver_addr)[14];
+    groupIdentifier <<= 8;
+    groupIdentifier += ((uint8_t *)receiver_addr)[15];
+    printf("\n######### Data received on group comm handler with length %d for group identifier %d\n",
+		 datalen, groupIdentifier);
+
+    for(i = 0; i < MAX_GC_GROUPS; i++){
+    			if(gc_handlers[i].group_identifier == groupIdentifier){ // free slot or same slot
+    				for(l=0; l < MAX_GC_HANDLERS; l++){
+    					if(gc_handlers[i].handlers[l] != NULL){
+    						gc_handlers[i].handlers[l](data);
+    					}
+    				}
+    			}
+        	}
 }
 #endif
 
@@ -1316,7 +1332,7 @@ PROCESS_THREAD(iotsys_server, ev, data) {
 
 #if GROUP_COMM_ENABLED
 		PRINTF("### Registering group comm handler.\n");
-		coap_rest_implementation.set_group_comm_callback(receiver);
+		coap_rest_implementation.set_group_comm_callback(group_comm_handler);
 		/*simple_udp_register(&broadcast_connection, UDP_PORT,
 		                      NULL, UDP_PORT,
 		                      receiver);

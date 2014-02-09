@@ -82,7 +82,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
   uip_ds6_maddr_t *maddr;
   const char msg[] = "<bool val=\"true\"/>\0";
   const char msg2[] = "<bool val=\"false\"/>\0";
-  int toogle = 0;
+  static int toogle = 0;
 
   coap_packet_t request; /* This way the packet can be treated as pointer as usual. */
 
@@ -104,22 +104,25 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
     etimer_set(&send_timer, SEND_TIME);
     printf("### Send time is %d\n", (unsigned short) SEND_TIME);
     printf("Current process name is %s\n", PROCESS_CURRENT()->name);
-
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
-
     uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
     //simple_udp_sendto(&broadcast_connection, "Test", 4, &addr);
     coap_init_connection(uip_htons(5683));
 
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
+
+
+
 
     coap_init_message(&request, COAP_TYPE_NON, COAP_PUT, 0 );
 
-    if(toogle){
+    if(toogle == 1){
     	toogle = 0;
+    	printf("Msg2\n");
     	coap_set_payload(&request, (uint8_t *)msg2, sizeof(msg2)-1);
     }
     else{
     	toogle = 1;
+    	printf("Msg1\n");
     	coap_set_payload(&request, (uint8_t *)msg, sizeof(msg)-1);
     }
 
