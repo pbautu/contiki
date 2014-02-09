@@ -464,7 +464,7 @@ struct uip_udp_conn *
 uip_udp_new(const uip_ipaddr_t *ripaddr, uint16_t rport)
 {
   register struct uip_udp_conn *conn;
-  
+
   /* Find an unused local port. */
  again:
   ++lastport;
@@ -489,9 +489,11 @@ uip_udp_new(const uip_ipaddr_t *ripaddr, uint16_t rport)
   }
 
   if(conn == 0) {
+
     return 0;
   }
   
+
   conn->lport = UIP_HTONS(lastport);
   conn->rport = rport;
   if(ripaddr == NULL) {

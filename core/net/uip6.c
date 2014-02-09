@@ -83,7 +83,7 @@
 /* For Debug, logging, statistics                                            */
 /*---------------------------------------------------------------------------*/
 
-#define DEBUG DEBUG_NONE
+#define DEBUG DEBUG_FULL
 #include "net/uip-debug.h"
 
 #if UIP_CONF_IPV6_RPL
@@ -533,6 +533,7 @@ uip_udp_new(const uip_ipaddr_t *ripaddr, uint16_t rport)
 {
   register struct uip_udp_conn *conn;
   
+  printf("Now in IPv6 uip_udp_conn.\n");
   /* Find an unused local port. */
  again:
   ++lastport;
@@ -556,11 +557,13 @@ uip_udp_new(const uip_ipaddr_t *ripaddr, uint16_t rport)
   }
 
   if(conn == 0) {
+	  printf("###### No free conn found.");
     return 0;
   }
-  
+
   conn->lport = UIP_HTONS(lastport);
   conn->rport = rport;
+  printf("###### Assigning lport %d and rport %d to conn.\n", conn->lport, conn->rport);
   if(ripaddr == NULL) {
     memset(&conn->ripaddr, 0, sizeof(uip_ipaddr_t));
   } else {
@@ -913,6 +916,7 @@ ext_hdr_options_process(void)
 void
 uip_process(uint8_t flag)
 {
+
 #if UIP_TCP
   register struct uip_conn *uip_connr = uip_conn;
 #endif /* UIP_TCP */
@@ -1460,7 +1464,7 @@ uip_process(uint8_t flag)
 
   remove_ext_hdr();
 
-  PRINTF("Receiving UDP packet\n");
+  printf("############Receiving UDP packet\n");
  
   /* UDP processing is really just a hack. We don't do anything to the
      UDP/IP headers, but let the UDP application do all the hard
@@ -1492,6 +1496,7 @@ uip_process(uint8_t flag)
   }
 
   /* Demultiplex this UDP packet between the UDP "connections". */
+  printf("### De-multiplexing: srcport %d, dstport: %d\n",UIP_UDP_BUF->srcport,UIP_UDP_BUF->destport );
   for(uip_udp_conn = &uip_udp_conns[0];
       uip_udp_conn < &uip_udp_conns[UIP_UDP_CONNS];
       ++uip_udp_conn) {
@@ -1502,6 +1507,7 @@ uip_process(uint8_t flag)
        connection is bound to a remote port. Finally, if the
        connection is bound to a remote IP address, the source IP
        address of the packet is checked. */
+	printf("### lport %d, rport %d\n", uip_udp_conn->lport, uip_udp_conn->rport);
     if(uip_udp_conn->lport != 0 &&
        UIP_UDP_BUF->destport == uip_udp_conn->lport &&
        (uip_udp_conn->rport == 0 ||

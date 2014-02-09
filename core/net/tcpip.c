@@ -312,9 +312,11 @@ udp_attach(struct uip_udp_conn *conn,
 struct uip_udp_conn *
 udp_new(const uip_ipaddr_t *ripaddr, uint16_t port, void *appstate)
 {
+
   struct uip_udp_conn *c;
   uip_udp_appstate_t *s;
-  
+
+  printf("#### UDP_NEW CALLED.");
   c = uip_udp_new(ripaddr, port);
   if(c == NULL) {
     return NULL;
@@ -756,7 +758,6 @@ void
 tcpip_uipcall(void)
 {
   uip_udp_appstate_t *ts;
-  
 #if UIP_UDP
   if(uip_conn != NULL) {
     ts = &uip_conn->appstate;

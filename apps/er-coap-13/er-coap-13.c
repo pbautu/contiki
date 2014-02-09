@@ -367,9 +367,11 @@ coap_serialize_message(void *packet, uint8_t *buffer)
   /* Pack payload */
   if ((option - coap_pkt->buffer)<=COAP_MAX_HEADER_SIZE)
   {
+
     /* Payload marker */
     if (coap_pkt->payload_len)
     {
+      PRINTF("-Setting payload marker);");
       *option = 0xFF;
       ++option;
     }
@@ -436,6 +438,7 @@ coap_parse_message(void *packet, uint8_t *data, uint16_t data_len)
   if (coap_pkt->version != 1)
   {
     coap_error_message = "CoAP version must be 1";
+
     return BAD_REQUEST_4_00;
   }
 

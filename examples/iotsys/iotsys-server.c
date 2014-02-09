@@ -80,7 +80,7 @@
 #warning "IoTSyS server example"
 #endif /* CoAP-specific example */
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -1261,20 +1261,19 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 }
 #endif // RES_LEDS
 
+#if GROUP_COMM_ENABLED
 static void
-receiver(struct simple_udp_connection *c,
-         const uip_ipaddr_t *sender_addr,
-         uint16_t sender_port,
+receiver(const uip_ipaddr_t *sender_addr,
          const uip_ipaddr_t *receiver_addr,
-         uint16_t receiver_port,
          const uint8_t *data,
          uint16_t datalen)
 {
   PRINT6ADDR(sender_addr);
   PRINT6ADDR(receiver_addr);
-  printf("\nData received on port %d from port %d with length %d\n",
-         receiver_port, sender_port, datalen);
+  printf("\n######### Data received on group comm handler with length %d\n",
+		 datalen);
 }
+#endif
 
 PROCESS(iotsys_server, "IoTSyS");
 AUTOSTART_PROCESSES(&iotsys_server);
@@ -1296,15 +1295,32 @@ void accm_cb_tap(uint8_t reg) {
 #endif // RES_BUTTON
 
 PROCESS_THREAD(iotsys_server, ev, data) {
-	PROCESS_BEGIN()
-		;
+	uip_ipaddr_t addr;
+	uip_ds6_maddr_t *maddr;
+	PROCESS_BEGIN()	;
 
+	 	uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
+	 	maddr = uip_ds6_maddr_add(&addr);
+	 	  if(maddr == NULL){
+	 		  PRINTF("NULL returned.");
+	 	  }
+	 	  else{
+	 		  PRINTF("Something returned.");
+	 		  PRINTF("Is used: %d", maddr->isused);
+	 		  PRINT6ADDR(&(maddr->ipaddr));
+	 	  }
 		PRINTF("Starting IoTSyS Server\n");
 
+		uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
+		  maddr = uip_ds6_maddr_add(&addr);
+
 #if GROUP_COMM_ENABLED
-		simple_udp_register(&broadcast_connection, UDP_PORT,
+		PRINTF("### Registering group comm handler.\n");
+		coap_rest_implementation.set_group_comm_callback(receiver);
+		/*simple_udp_register(&broadcast_connection, UDP_PORT,
 		                      NULL, UDP_PORT,
 		                      receiver);
+		*/
 #endif
 
 #ifdef RF_CHANNEL

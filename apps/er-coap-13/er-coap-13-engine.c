@@ -44,7 +44,7 @@
 
 #include "er-coap-13-engine.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -71,6 +71,7 @@ PROCESS(coap_receiver, "CoAP Receiver");
 /*- Variables ----------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 static service_callback_t service_cbk = NULL;
+static group_comm_callback_t group_comm_cbk = NULL;
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -96,6 +97,13 @@ coap_receive(void)
     PRINTF("\n");
 
     coap_error_code = coap_parse_message(message, uip_appdata, uip_datalen());
+
+    if( uip_is_addr_mcast(&UIP_IP_BUF->destipaddr) && ((uint8_t *)(&UIP_IP_BUF->destipaddr))[1] >> 4 ){ // multicast address with transient scope
+    	if(group_comm_cbk != NULL){
+    		group_comm_cbk(&UIP_IP_BUF->srcipaddr, &UIP_IP_BUF->destipaddr, message->payload, message->payload_len);
+    	}
+    	return NO_ERROR;
+    }
 
     if (coap_error_code==NO_ERROR)
     {
@@ -302,6 +310,14 @@ coap_set_service_callback(service_callback_t callback)
 {
   service_cbk = callback;
 }
+
+/*----------------------------------------------------------------------------*/
+void
+coap_set_group_comm_callback(group_comm_callback_t callback)
+{
+  group_comm_cbk = callback;
+}
+
 /*----------------------------------------------------------------------------*/
 rest_resource_flags_t
 coap_get_rest_method(void *packet)
@@ -596,8 +612,8 @@ void coap_simple_request(uip_ipaddr_t *addr, uint16_t port, coap_packet_t *reque
 	uint8_t packet[COAP_MAX_PACKET_SIZE+1];
 	uint16_t packet_len;
 	packet_len = coap_serialize_message(request, &packet );
-	coap_send_message(addr, port, &packet, packet_len);
-
+	PRINT("packet_len is %d.\n", packet_len);
+	coap_send_message(addr, uip_htons(port), &packet, packet_len);
 }
 /*----------------------------------------------------------------------------*/
 /*- Engine Interface ---------------------------------------------------------*/
@@ -607,6 +623,7 @@ const struct rest_implementation coap_rest_implementation = {
 
   coap_receiver_init,
   coap_set_service_callback,
+  coap_set_group_comm_callback,
 
   coap_get_header_uri_path,
   coap_set_header_uri_path,

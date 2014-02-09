@@ -80,8 +80,11 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
   static struct etimer send_timer;
   uip_ipaddr_t addr;
   uip_ds6_maddr_t *maddr;
+  const char msg[] = "<bool val=\"true\"/>\0";
+  const char msg2[] = "<bool val=\"false\"/>\0";
+  int toogle = 0;
 
-  static coap_packet_t request[1]; /* This way the packet can be treated as pointer as usual. */
+  coap_packet_t request; /* This way the packet can be treated as pointer as usual. */
 
   PROCESS_BEGIN();
   uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
@@ -103,16 +106,28 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
     printf("Current process name is %s\n", PROCESS_CURRENT()->name);
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
-    printf("Sending coap message.\n");
+
     uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
     //simple_udp_sendto(&broadcast_connection, "Test", 4, &addr);
+    coap_init_connection(uip_htons(5683));
 
-    const char msg[] = "<bool val=\"true\"/>\0";
-    coap_set_payload(request, (uint8_t *)msg, sizeof(msg)-1);
-    coap_init_message(request, COAP_TYPE_NON, COAP_PUT, 0 );
-    coap_set_header_uri_path(request, "coap://[FF12::1]/");
 
-    coap_simple_request(&addr, 5683, request);
+    coap_init_message(&request, COAP_TYPE_NON, COAP_PUT, 0 );
+
+    if(toogle){
+    	toogle = 0;
+    	coap_set_payload(&request, (uint8_t *)msg2, sizeof(msg2)-1);
+    }
+    else{
+    	toogle = 1;
+    	coap_set_payload(&request, (uint8_t *)msg, sizeof(msg)-1);
+    }
+
+
+
+    coap_set_header_uri_path(&request, "coap://[FF12::1]/");
+
+    coap_simple_request(&addr, 5683, &request);
 
     printf("\n--Done--\n");
   }

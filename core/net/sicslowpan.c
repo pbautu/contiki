@@ -307,13 +307,15 @@ int isSequenceNewAndStore(uip_ip6addr_t *srcip, uint8_t sequence){
 		PRINTF("  ");
 		if(uip_ip6addr_cmp(srcip,&sequenceBuffer[i].srcip)){
 			// found src ip
-			PRINTF("Found sequence number for src ip %d\n", sequenceBuffer[i].sequence);
+			PRINTF("Source IP: ");
+			PRINT6ADDR(srcip);
+			PRINTF("\nFound sequence number for src ip %d, packet sequence is: %d\n ", sequenceBuffer[i].sequence, sequence);
 
 			// in general we want to keep the sequence number increasing but after 256 frames it is reset to 0
 			// therefore the second clause assumes that the current sequence number including the last 10
 			// numbers are old packets. if the sequence number is lower below this treshold it is assumed to
 			// be a new packet.
-			if(sequenceBuffer[i].sequence == sequence && sequenceBuffer[i].sequence - 10 < sequence){
+			if(sequenceBuffer[i].sequence == sequence &&  !(sequence < sequenceBuffer[i].sequence - 10)){
 				// this is an old packet
 				return 0;
 			}
@@ -330,6 +332,7 @@ int isSequenceNewAndStore(uip_ip6addr_t *srcip, uint8_t sequence){
 		// end of array reached reset index and overwrite existing entries
 		cur_ipv6_sequence = 0;
 	}
+	PRINTF("\nCreating new sequence number entry for IPv6 address.\n");
 	uip_ip6addr_copy(&sequenceBuffer[cur_ipv6_sequence].srcip , srcip);
 	sequenceBuffer[cur_ipv6_sequence].sequence = sequence;
 	cur_ipv6_sequence++;
@@ -1906,6 +1909,7 @@ input(void)
         	  ctimer_set(&retransmit_timer, (CLOCK_SECOND / 100) * retransmission_wait_ms, retransmit_callback, NULL);
           }
           else{
+        	  PRINTF("Sequence is old. Returning.\n");
         	  return;
           }
 
@@ -2008,6 +2012,7 @@ input(void)
       callback->input_callback();
     }
 
+    PRINTF("Calling TCPIP INPUT\n");
     tcpip_input();
 #if SICSLOWPAN_CONF_FRAG
   }

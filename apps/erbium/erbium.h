@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include "contiki.h"
 #include "contiki-lib.h"
+#include "uip.h"
 
 /*
  * The maximum buffer size that is provided for resource responses and must be respected due to the limited IP buffer.
@@ -80,6 +81,12 @@ typedef void (*restful_response_handler) (void *data, void* response);
 
 /* Signature of the rest-engine service function. */
 typedef int (* service_callback_t)(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
+
+/* Group comm callback */
+typedef void (* group_comm_callback_t) (uip_ipaddr_t *sender_addr,
+        uip_ipaddr_t *receiver_addr,
+        uint8_t *data,
+        uint16_t datalen);
 
 /**
  * The structure of a MAC protocol driver in Contiki.
@@ -168,6 +175,7 @@ struct rest_implementation {
 
   /** Register the RESTful service callback at implementation */
   void (* set_service_callback)(service_callback_t callback);
+  void (* set_group_comm_callback)(group_comm_callback_t callback);
 
   /** Get request URI path */
   int (* get_url)(void *request, const char **url);

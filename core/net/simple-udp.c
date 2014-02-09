@@ -172,6 +172,7 @@ simple_udp_register(struct simple_udp_connection *c,
 
   c->local_port = local_port;
   c->remote_port = remote_port;
+  printf("### local port: %d, remote port%d\n", c->local_port, c->remote_port);
   if(remote_addr != NULL) {
     uip_ipaddr_copy(&c->remote_addr, remote_addr);
   }
