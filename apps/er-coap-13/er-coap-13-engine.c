@@ -612,7 +612,7 @@ void coap_simple_request(uip_ipaddr_t *addr, uint16_t port, coap_packet_t *reque
 	uint8_t packet[COAP_MAX_PACKET_SIZE+1];
 	uint16_t packet_len;
 	packet_len = coap_serialize_message(request, &packet );
-	PRINT("packet_len is %d.\n", packet_len);
+	PRINTF("packet_len is %d.\n", packet_len);
 	coap_send_message(addr, uip_htons(port), &packet, packet_len);
 }
 /*----------------------------------------------------------------------------*/
