@@ -87,6 +87,7 @@
 
 #include <string.h>
 
+
 /*---------------------------------------------------------------------------*/
 /* Variable definitions. */
 
@@ -675,7 +676,6 @@ void
 uip_process(uint8_t flag)
 {
   register struct uip_conn *uip_connr = uip_conn;
-
 #if UIP_UDP
   if(flag == UIP_UDP_SEND_CONN) {
     goto udp_send;

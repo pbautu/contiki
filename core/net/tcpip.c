@@ -583,6 +583,7 @@ tcpip_ipv6_output(void)
         nexthop = uip_ds6_defrt_choose();
         if(nexthop == NULL) {
 #ifdef UIP_FALLBACK_INTERFACE
+        	printf("#### fallback interface!!!!!!!!!!!!!!!!!!\n");
 	  PRINTF("FALLBACK: removing ext hdrs & setting proto %d %d\n", 
 		 uip_ext_len, *((uint8_t *)UIP_IP_BUF + 40));
 	  if(uip_ext_len > 0) {
@@ -729,10 +730,14 @@ tcpip_ipv6_output(void)
     }
     return;
   }
-  PRINTF("NOW MULTICASTING\n");
+  printf("########### Now multicast\n");
+  // now check for transient site local mcast address.
+  // these addresses should be forwarded on the rpl-border-router
+  if(uip_is_addr_mcast_site_local(&UIP_IP_BUF->destipaddr) && uip_is_addr_mcast_transient(&UIP_IP_BUF->destipaddr)) {
+	 printf("##### SITE LOCAL TRANSIENT MCAST ADDRESS!\n");
+  }
   /* Multicast IP destination address. */
   tcpip_output(NULL);
-  PRINTF("AFTER TCPIP OUTPU.\n");
   uip_len = 0;
   uip_ext_len = 0;
 }

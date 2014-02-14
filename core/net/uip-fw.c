@@ -353,7 +353,6 @@ find_netif(void)
 uint8_t
 uip_fw_output(void)
 {
-  PRINTF("UIP FW OUTPUT.\n");
   struct uip_fw_netif *netif;
 #if UIP_BROADCAST
   const struct uip_udpip_hdr *udp = (void *)BUF;

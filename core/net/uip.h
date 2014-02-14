@@ -2095,6 +2095,16 @@ CCIF extern uip_lladdr_t uip_lladdr;
   (((a)->u8[0]) == 0xFF)
 
 /**
+ * \brief is address a site-local multicast address, see RFC 3513
+ * a is of type uip_ipaddr_t*
+ * */
+#define uip_is_addr_mcast_site_local(a)                    \
+  (((a)->u8[1] & 0x05) ==  0x05)
+
+#define uip_is_addr_mcast_transient(a)                    \
+  (((a)->u8[1] >> 4 ) ==  0x01)
+
+/**
  * \brief is group-id of multicast address a
  * the all nodes group-id
  */

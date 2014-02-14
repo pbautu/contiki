@@ -48,7 +48,7 @@
 #define SEND_INTERVAL		(10 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF(" %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x ", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -87,7 +87,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
   coap_packet_t request; /* This way the packet can be treated as pointer as usual. */
 
   PROCESS_BEGIN();
-  uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
+  uip_ip6addr(&addr, 0xff15, 0, 0, 0, 0, 0, 0, 0x1);
   PRINT6ADDR(&addr);
   maddr = uip_ds6_maddr_add(&addr);
   if(maddr == NULL){

@@ -78,6 +78,10 @@
 
 #include <string.h>
 
+#ifdef UIP_FALLBACK_INTERFACE
+extern struct uip_fallback_interface UIP_FALLBACK_INTERFACE;
+#endif
+
 #if UIP_CONF_IPV6
 /*---------------------------------------------------------------------------*/
 /* For Debug, logging, statistics                                            */
@@ -85,6 +89,9 @@
 
 #define DEBUG 0
 #include "net/uip-debug.h"
+
+#define PRINTF(...) printf(__VA_ARGS__)
+#define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
 
 #if UIP_CONF_IPV6_RPL
 #include "rpl/rpl.h"
@@ -102,7 +109,6 @@ void uip_log(char *msg);
 struct uip_stats uip_stat;
 #endif /* UIP_STATISTICS == 1 */
  
-
 /*---------------------------------------------------------------------------*/
 /** @{ \name Layer 2 variables */
 /*---------------------------------------------------------------------------*/
@@ -914,7 +920,6 @@ ext_hdr_options_process(void)
 void
 uip_process(uint8_t flag)
 {
-
 #if UIP_TCP
   register struct uip_conn *uip_connr = uip_conn;
 #endif /* UIP_TCP */
@@ -1158,11 +1163,11 @@ uip_process(uint8_t flag)
   /* TBD Some Parameter problem messages */
   if(!uip_ds6_is_my_addr(&UIP_IP_BUF->destipaddr) &&
      !uip_ds6_is_my_maddr(&UIP_IP_BUF->destipaddr)) {
-    if(!uip_is_addr_mcast(&UIP_IP_BUF->destipaddr) &&
+    if( (!uip_is_addr_mcast(&UIP_IP_BUF->destipaddr) &&
        !uip_is_addr_link_local(&UIP_IP_BUF->destipaddr) &&
        !uip_is_addr_link_local(&UIP_IP_BUF->srcipaddr) &&
        !uip_is_addr_unspecified(&UIP_IP_BUF->srcipaddr) &&
-       !uip_is_addr_loopback(&UIP_IP_BUF->destipaddr)) {
+       !uip_is_addr_loopback(&UIP_IP_BUF->destipaddr))  ) {
 
 
       /* Check MTU */
@@ -1200,6 +1205,15 @@ uip_process(uint8_t flag)
                                ICMP6_DST_UNREACH_NOTNEIGHBOR, 0);
         goto send;
       }
+
+      // check for site local transient multicast address --> forward to FALLBACK INTERFACE to transmit
+      // to backhaul link
+#ifdef UIP_FALLBACK_INTERFACE
+      PRINT6ADDR(&UIP_IP_BUF->destipaddr);
+      if(uip_is_addr_mcast(&UIP_IP_BUF->destipaddr) && uip_is_addr_mcast_site_local(&UIP_IP_BUF->destipaddr) && uip_is_addr_mcast_transient(&UIP_IP_BUF->destipaddr)){
+    	  UIP_FALLBACK_INTERFACE.output();
+      }
+#endif /* !UIP_FALLBACK_INTERFACE */
       PRINTF("Dropping packet, not for me and link local or multicast\n");
       UIP_STAT(++uip_stat.ip.drop);
       goto drop;
@@ -1459,7 +1473,6 @@ uip_process(uint8_t flag)
 #if UIP_UDP
   /* UDP input processing. */
  udp_input:
-
   remove_ext_hdr();
  
   /* UDP processing is really just a hack. We don't do anything to the
