@@ -111,9 +111,6 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
 
-
-
-
     coap_init_message(&request, COAP_TYPE_NON, COAP_PUT, 0 );
 
     if(toogle == 1){
@@ -126,8 +123,6 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
     	printf("Msg1\n");
     	coap_set_payload(&request, (uint8_t *)msg, sizeof(msg)-1);
     }
-
-
 
     coap_set_header_uri_path(&request, "");
 
