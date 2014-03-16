@@ -46,7 +46,7 @@
 #define RES_TEMP 0
 #define RES_ACC 0
 #define RES_BUTTON 0
-#define RES_LEDS 0
+#define RES_LEDS 1
 
 #define GROUP_COMM_ENABLED 1
 #define UDP_PORT 5683
@@ -81,7 +81,7 @@
 #warning "IoTSyS server example"
 #endif /* CoAP-specific example */
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -284,7 +284,7 @@ void send_coap_multicast(char* payload, size_t msgSize, uip_ip6addr_t* mc_addres
 }
 
 void send_group_update(char* payload, size_t msgSize, gc_handler handler ){
-	printf("sending group update\n");
+	PRINTF("sending group update\n");
 	int i,l=0;
 	uip_ip6addr_t gc_address;
 
@@ -292,7 +292,7 @@ void send_group_update(char* payload, size_t msgSize, gc_handler handler ){
 		// adding gc handler
 		for(l=0; l < MAX_GC_HANDLERS; l++){
 			if(gc_handlers[i].handlers[l] == handler ){
-				printf("Sending update to group identifier %d", gc_handlers[i].group_identifier);
+				PRINTF("Sending update to group identifier %d", gc_handlers[i].group_identifier);
 				uip_ip6addr(&gc_address, 0xff12, 0, 0, 0, 0, 0, 0, gc_handlers[i].group_identifier);
 				send_coap_multicast(payload, msgSize, &gc_address);
 			}
@@ -708,19 +708,19 @@ void button_value_handler(void* request, void* response, uint8_t *buffer,
 	}
 
 	if(strstr(uri_path, "joinGroup") && REST.get_method_type(request) == METHOD_POST ){
-		printf("Join group called.\n");
+		PRINTF("Join group called.\n");
 		get_ipv6_multicast_addr(payload_buffer, &groupAddress);
 		PRINT6ADDR(&groupAddress);
 		extract_group_identifier(&groupAddress, &groupIdentifier);
-		printf("\n group identifier: %d\n", groupIdentifier);
+		PRINTF("\n group identifier: %d\n", groupIdentifier);
 		join_group(groupIdentifier, handler);
 	}
 	else if(strstr(uri_path, "leaveGroup") && REST.get_method_type(request) == METHOD_POST){
-		printf("Leave group called.\n");
+		PRINTF("Leave group called.\n");
 		get_ipv6_multicast_addr(payload_buffer, &groupAddress);
 		PRINT6ADDR(&groupAddress);
 		extract_group_identifier(&groupAddress, &groupIdentifier);
-		printf("\n group identifier: %d\n", groupIdentifier);
+		PRINTF("\n group identifier: %d\n", groupIdentifier);
 		leave_group(groupIdentifier,  handler);
 	}
 #endif // GROUP_COMM_ENABLED
@@ -999,7 +999,6 @@ uint8_t create_response_datapoint_led(char *buffer,
 	uint8_t size_msg;
 
 	PRINTF("Creating response datapoint led asChild: %d color: %d\n", asChild, color);
-
 
 	if (asChild) {
 		msgp1 =	"<bool href=\"leds/";
@@ -1295,8 +1294,13 @@ void led_blue_handler(void* request, void* response, uint8_t *buffer,
 	int16_t groupIdentifier = 0;
 
     if(strstr(uri_path, "joinGroup") && REST.get_method_type(request) == METHOD_POST ){
+    	printf("#### Join Group Called!");
     	PRINTF("Join group called.\n");
     	get_ipv6_multicast_addr(payload_buffer, &groupAddress);
+
+    	// join locally for the multicast address
+    	uip_ds6_maddr_add(&groupAddress);
+
     	PRINT6ADDR(&groupAddress);
     	extract_group_identifier(&groupAddress, &groupIdentifier);
     	PRINTF("\n group identifier: %d\n", groupIdentifier);
@@ -1369,7 +1373,7 @@ group_comm_handler(const uip_ipaddr_t *sender_addr,
 	groupIdentifier =  ((uint8_t *)receiver_addr)[14];
     groupIdentifier <<= 8;
     groupIdentifier += ((uint8_t *)receiver_addr)[15];
-    printf("\n######### Data received on group comm handler with length %d for group identifier %d\n",
+    PRINTF("\n######### Data received on group comm handler with length %d for group identifier %d\n",
 		 datalen, groupIdentifier);
 
     for(i = 0; i < MAX_GC_GROUPS; i++){
@@ -1404,20 +1408,20 @@ void accm_cb_tap(uint8_t reg) {
 #endif // RES_BUTTON
 
 PROCESS_THREAD(iotsys_server, ev, data) {
-	uip_ipaddr_t addr;
-	uip_ds6_maddr_t *maddr;
+	//uip_ipaddr_t addr;
+	//uip_ds6_maddr_t *maddr;
 	PROCESS_BEGIN()	;
 
-	 	uip_ip6addr(&addr, 0xff12, 0, 0, 0, 0, 0, 0, 0x1);
-	 	maddr = uip_ds6_maddr_add(&addr);
-	 	  if(maddr == NULL){
-	 		  PRINTF("NULL returned.");
-	 	  }
-	 	  else{
-	 		  PRINTF("Something returned.");
-	 		  PRINTF("Is used: %d", maddr->isused);
-	 		  PRINT6ADDR(&(maddr->ipaddr));
-	 	  }
+	 	//uip_ip6addr(&addr, 0xff15, 0, 0, 0, 0, 0, 0, 0x1);
+	 	//maddr = uip_ds6_maddr_add(&addr);
+	 	//  if(maddr == NULL){
+	 	//	  PRINTF("NULL returned.");
+	 	//  }
+	 	//  else{
+	 	//	  PRINTF("Something returned.");
+	 	//	  PRINTF("Is used: %d", maddr->isused);
+	 	//	  PRINT6ADDR(&(maddr->ipaddr));
+	 	//  }
 		PRINTF("Starting IoTSyS Server\n");
 
 #if GROUP_COMM_ENABLED

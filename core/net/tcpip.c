@@ -583,7 +583,6 @@ tcpip_ipv6_output(void)
         nexthop = uip_ds6_defrt_choose();
         if(nexthop == NULL) {
 #ifdef UIP_FALLBACK_INTERFACE
-        	printf("#### fallback interface!!!!!!!!!!!!!!!!!!\n");
 	  PRINTF("FALLBACK: removing ext hdrs & setting proto %d %d\n", 
 		 uip_ext_len, *((uint8_t *)UIP_IP_BUF + 40));
 	  if(uip_ext_len > 0) {
