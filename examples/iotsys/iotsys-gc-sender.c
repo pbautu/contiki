@@ -83,6 +83,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
   const char msg[] = "<bool val=\"true\"/>\0";
   const char msg2[] = "<bool val=\"false\"/>\0";
   static int toogle = 0;
+  static int msgid = 0;
 
   coap_packet_t request; /* This way the packet can be treated as pointer as usual. */
 
@@ -111,7 +112,7 @@ PROCESS_THREAD(broadcast_example_process, ev, data)
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
 
-    coap_init_message(&request, COAP_TYPE_NON, COAP_PUT, 0 );
+    coap_init_message(&request, COAP_TYPE_NON, COAP_PUT, msgid++);
 
     if(toogle == 1){
     	toogle = 0;
